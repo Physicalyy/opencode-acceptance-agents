@@ -1,0 +1,123 @@
+---
+name: acceptance-agents
+description: Use when the user asks to generate acceptance test cases, UI-first test cases, QA cases, run UI/Midscene acceptance, rerun pending/failed UI cases, or review an acceptance report. Routes work to OpenCode agents acceptance-cases, acceptance-ui, and acceptance-review.
+---
+
+# Acceptance Agents
+
+Use this skill to route acceptance-testing requests to the right OpenCode agent.
+
+## Intent Routing
+
+### Generate or refresh cases
+
+Trigger when the user says any of:
+
+- 生成验收用例
+- 生成测试用例
+- UI 验收用例
+- QA 用例
+- test cases
+- acceptance cases
+- 只生成，不执行
+- 不参考旧 test-run
+
+Route to agent:
+
+```text
+acceptance-cases
+```
+
+Default behavior:
+
+- Generate UI-first / Midscene-ready cases.
+- Do not execute cases.
+- Set all new cases to `pending`.
+- Do not generate unrelated Maven compile, source inspection, configuration, database-internal, or implementation-detail cases unless the user explicitly asks or the case is strictly necessary to prove a P0/P1 user-visible requirement.
+
+### Execute UI or Midscene acceptance
+
+Trigger when the user says any of:
+
+- 执行 UI 验收
+- 跑 Midscene
+- UI 自动化验收
+- 执行 P0/P1 UI 用例
+- rerun failed UI cases
+- rerun pending UI cases
+
+Route to agent:
+
+```text
+acceptance-ui
+```
+
+Default behavior:
+
+- Execute selected UI/Midscene cases.
+- Collect screenshot, DOM, route, visible-text, console, or network evidence relevant to UI behavior.
+- Update only `status`, `evidence`, and `notes` unless the case definition is demonstrably wrong.
+- Require explicit authorization for `data_mutation` or `destructive` cases.
+
+### Review acceptance report
+
+Trigger when the user says any of:
+
+- 复核验收报告
+- 审查测试报告
+- 检查覆盖度
+- 看看验收是否充分
+- review acceptance report
+
+Route to agent:
+
+```text
+acceptance-review
+```
+
+Default behavior:
+
+- Review coverage, evidence sufficiency, hidden pending/failed cases, manual-case evidence, and false-positive risk.
+- Do not execute cases.
+- Do not invent results or evidence.
+
+### Complete acceptance flow
+
+Trigger when the user asks for a broad or full flow, such as:
+
+- 做完整验收
+- 跑完整 acceptance
+- finish acceptance gate
+
+Route through:
+
+```text
+acceptance-agent
+```
+
+The main session may split the work into stages and dispatch `acceptance-cases`, `acceptance-ui`, then `acceptance-review` as needed.
+
+## Project Modes
+
+### Trellis projects
+
+If `.trellis/` exists:
+
+1. Prefer the active task from the dispatch prompt or `python ./.trellis/scripts/task.py current --source`.
+2. Read task artifacts in order: `prd.md`, `design.md` if present, `implement.md` if present.
+3. Write acceptance outputs under the task directory.
+
+### Non-Trellis projects
+
+If `.trellis/` does not exist:
+
+1. Use the user-provided requirement document, issue, screenshot, or feature description.
+2. If no source is specified, ask for the smallest missing requirement source.
+3. Write outputs under `acceptance-artifacts/`.
+
+## Safety Rules
+
+- Do not write secrets, API keys, tokens, or environment files.
+- Do not modify business code unless the user explicitly changes the request from acceptance to fixing.
+- Do not mark cases passed without concrete evidence.
+- Keep UI-first case generation focused on user-visible behavior.

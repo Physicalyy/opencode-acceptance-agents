@@ -1,0 +1,22 @@
+{
+  "name": "opencode-acceptance-agents",
+  "version": "0.1.0",
+  "description": "OpenCode acceptance agents for UI-first test case generation, Midscene execution, and report review.",
+  "type": "module",
+  "bin": {
+    "opencode-acceptance-agents": "./scripts/install.mjs"
+  },
+  "scripts": {
+    "install:local": "node scripts/install.mjs",
+    "dry-run": "node scripts/install.mjs --dry-run"
+  },
+  "keywords": [
+    "opencode",
+    "acceptance",
+    "agents",
+    "midscene",
+    "ui-testing",
+    "trellis"
+  ],
+  "license": "MIT"
+}
