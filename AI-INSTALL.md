@@ -40,13 +40,12 @@ acceptance-ui
 
 ## 作用
 
-- `acceptance-cases`：生成 UI-first 验收用例，不执行。
-- `acceptance-ui`：执行 UI/Midscene 验收，写报告。
+- `acceptance-cases`：基于 5 步流程生成 UI-first 验收用例，不执行。
+- `acceptance-ui`：执行 UI/Midscene 验收、多模态识别、写中文报告。
 - `acceptance-review`：复核验收报告覆盖度和证据。
 - `acceptance-agent`：完整验收入口和阶段路由。
 
-默认安装的 skill 会帮助主 AI 自动识别：
+Skills：
 
-- "生成验收用例" → `acceptance-cases`
-- "执行 UI 验收" → `acceptance-ui`
-- "复核报告" → `acceptance-review`
+- `acceptance-agents`：自动识别中文/英文触发词路由到对应 agent。
+- `test-case-generator`：独立 5 步流程测试用例生成器（需求分析→测试点→用例→挑刺→覆盖度），可脱离验收流程单独使用。

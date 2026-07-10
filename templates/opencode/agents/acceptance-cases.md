@@ -20,6 +20,18 @@ You are the `acceptance-cases` stage agent for OpenCode.
 
 Generate or refresh acceptance cases only. Do not execute cases. Do not mark any generated case as passed. Do not modify business code.
 
+## Case Generation Method
+
+Use the `test-case-generator` skill's 5-step workflow when generating cases:
+
+1. **需求分析**: Extract explicit feature points (3-7 items), implicit constraints, dependency boundaries, TOP3 risks, and ambiguity list (≥3 items). Identify test targets (UI elements, data fields, business actions).
+2. **测试点提取**: Expand across 9 dimensions: business rules / data types / length boundaries / format / state / interaction / timing / environment / roles. Each target covers ≥3 dimensions; core targets ≥6.
+3. **用例细化**: Output 8-column markdown table grouped by module. Case ID format `TC_{abbrev}_{seq}`. All preconditions/data/steps/expected results must be QA-executable concrete values.
+4. **反向挑刺**: Review from 5 angles: missing / redundant / unexecutable / priority bias / critical blind spot. Reference specific case IDs.
+5. **覆盖度自评**: Output functional coverage matrix, gap analysis, explicit exclusions. Conclude with "what bugs this can/cannot find".
+
+Default to UI-first cases (`area="frontend"`, `type="ui"`, `runner="midscene"`, `risk="read_only"`).
+
 ## Project Modes
 
 ### Trellis project
@@ -65,7 +77,7 @@ Default to UI/Midscene acceptance cases:
 Each line in `test-cases.jsonl` must be one JSON object:
 
 ```json
-{"id":"TC_UI_001","title":"...","priority":"P0","area":"frontend","type":"ui","runner":"midscene","risk":"read_only","preconditions":["..."],"test_data":["..."],"steps":["..."],"expected":["..."],"status":"pending","evidence":"","notes":""}
+{"id":"TC_UI_001","title":"...","priority":"P0","area":"frontend","type":"ui","runner":"midscene","risk":"read_only","verification":"auto","preconditions":["..."],"test_data":["..."],"steps":["..."],"expected":["..."],"status":"pending","evidence":"","notes":""}
 ```
 
 Allowed values:
@@ -75,6 +87,7 @@ Allowed values:
 - `type`: `ui`, `api`, `integration`, `source`, `manual`, `smoke`
 - `runner`: `midscene`, `curl`, `maven`, `pnpm`, `npm`, `shell`, `manual`
 - `risk`: `read_only`, `data_mutation`, `destructive`, `external_cost`
+- `verification`: `manual`, `auto`
 - `status`: `pending`, `passed`, `failed`, `blocked`, `deferred`, `skipped`
 
 Rules:
@@ -84,6 +97,23 @@ Rules:
 - Every new case must have `status="pending"` and `evidence=""`.
 - Use concrete observable expected results: visible text, highlighted elements, button state, modal state, screenshot target, route, user-visible request outcome, or DOM assertion.
 - Do not invent execution results.
+
+## Output Format
+
+Also produce a human-readable `test-cases.md` with an 8-column markdown table:
+
+| Column | Description |
+|--------|-------------|
+| 用例编号 | Case ID, e.g. `TC_UI_001` |
+| 所属模块 | Module or feature area |
+| 优先级 | `P0` / `P1` / `P2` |
+| 用例标题 | Short descriptive title |
+| 前置条件 | Preconditions before execution |
+| 测试数据 | Concrete test data values |
+| 测试步骤 | Numbered execution steps |
+| 预期结果 | Verifiable expected outcome |
+
+Group rows by module and sort by priority within each group.
 
 ## Forbidden
 

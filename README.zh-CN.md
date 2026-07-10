@@ -6,16 +6,23 @@
 
 | 阶段 | Agent | 默认模型 | 作用 |
 |---|---|---|---|
-| 生成 UI 验收用例 | `acceptance-cases` | `opencode-go/deepseek-v4-pro` | 只生成/刷新 `test-cases.jsonl` 与 `test-cases.md`，不执行 |
-| 执行 UI/Midscene 验收 | `acceptance-ui` | `opencode-go/qwen3.6-plus` | 执行 UI 用例、截图/DOM/视觉断言、写报告 |
+| 生成 UI 验收用例 | `acceptance-cases` | `opencode-go/deepseek-v4-pro` | 基于 5 步流程（需求分析→测试点→用例→挑刺→覆盖度）生成/刷新 `test-cases.jsonl` 与 `test-cases.md`，不执行 |
+| 执行 UI/Midscene 验收 | `acceptance-ui` | `opencode-go/qwen3.6-plus` | 执行 UI 用例、Midscene 测试生成、多模态识别、截图/DOM/视觉断言、中文报告 |
 | 复核验收报告 | `acceptance-review` | `opencode/gpt-5.5` | 检查覆盖度、证据充分性、误报风险 |
 | 综合入口 | `acceptance-agent` | 当前会话模型 | 作为阶段路由说明和完整验收入口 |
+
+### Skills
+
+| Skill | 作用 |
+|-------|------|
+| `acceptance-agents` | 自动识别中文/英文触发词，路由到对应 agent，支持 fresh mode（从头开始 → cases→ui→review） |
+| `test-case-generator` | 独立 5 步流程测试用例生成器，输出 8 列 markdown 表格 + JSONL，可脱离验收流程单独使用 |
 
 ## 适用项目
 
 - **Trellis 项目**：自动优先读取 `.trellis/tasks/<task>/prd.md`、`design.md`、`implement.md`，输出到任务目录。
 - **非 Trellis 项目**：读取用户指定的需求文档或当前对话需求，输出到 `acceptance-artifacts/`。
-- 安装器会同时安装一个 OpenCode skill：`acceptance-agents`，用于提示主 AI 自动把“生成验收用例 / UI 验收 / Midscene / 复核报告”等意图路由到对应 agent。
+- 安装器会同时安装 2 个 OpenCode skill：`acceptance-agents` 用于自动路由，`test-case-generator` 用于独立生成用例。
 
 ## 安装
 
@@ -45,6 +52,7 @@ npx github:Physicalyy/opencode-acceptance-agents --target "D:\idea_project\your-
 <project>/.opencode/agents/acceptance-ui.md
 <project>/.opencode/agents/acceptance-review.md
 <project>/.opencode/skills/acceptance-agents/SKILL.md
+<project>/.opencode/skills/test-case-generator/SKILL.md
 ```
 
 并在 `<project>/AGENTS.md` 中追加一个托管块，告诉 AI 如何自动触发这些 agents。
@@ -57,10 +65,11 @@ npx github:Physicalyy/opencode-acceptance-agents --target "D:\idea_project\your-
 opencode agent list | grep acceptance
 ```
 
-也可以检查 skill：
+也可以检查 skills：
 
 ```bash
 ls .opencode/skills/acceptance-agents/SKILL.md
+ls .opencode/skills/test-case-generator/SKILL.md
 ```
 
 Windows：
@@ -97,6 +106,27 @@ Trellis 指定任务：
 ```text
 调用 acceptance-cases，根据 docs/prd.md 生成 UI-first 验收用例，输出到 acceptance-artifacts/，不执行。
 ```
+
+### 通过自然语言触发（skill 自动路由）
+
+安装 `acceptance-agents` skill 后，直接说中文即可自动路由：
+
+- "生成验收用例" / "生成测试用例" → `acceptance-cases`
+- "执行 UI 验收" / "跑 Midscene" / "开始测试" → `acceptance-ui`
+- "复核报告" / "检查覆盖度" → `acceptance-review`
+- "从头开始" / "忽略旧用例" / "fresh" → fresh mode：cases → ui → review
+- "做完整验收" / "完整验收流程" → `acceptance-agent` 分阶段执行
+
+### 独立使用 test-case-generator
+
+不通过 acceptance 流程，单独生成测试用例：
+
+```text
+使用 test-case-generator，根据以下需求生成测试用例：
+<粘贴需求文档或描述>
+```
+
+生成结果包含 8 列 markdown 表格和 `test-cases.jsonl`。
 
 ### 执行 UI/Midscene 验收
 
@@ -135,6 +165,21 @@ Trellis 指定任务：
 2. 某个 P0/P1 验收点无法通过 UI 行为证明；
 3. 是执行 UI 验收所必需的最小前置冒烟。
 
+## 验收状态与报告
+
+`acceptance-ui` 使用红绿黄灯体系：
+
+| 状态 | 灯号 | 含义 |
+|------|------|------|
+| `passed` | 🟢 Green | 预期结果已验证，有具体证据 |
+| `failed` | 🔴 Red | 实际行为与预期矛盾 |
+| `blocked` | 🟡 Yellow | 环境/依赖/权限不可用 |
+| `deferred` | 🟡 Yellow | 有意推迟的 P2 |
+| `pending` | 🟡 Yellow | 本轮未执行 |
+| `skipped` | 🟡 Yellow | 本轮跳过 |
+
+报告包含 7 段：环境信息、汇总、用例表、多模态识别结论、问题列表、未执行清单、报告评审。
+
 ## 模型配置
 
 默认模型来自 OpenCode Go / OpenCode：
@@ -166,7 +211,7 @@ model: provider/model-id
 
 ## 不安装 skill
 
-如果你只想安装 agents，不想安装自动触发提示 skill：
+如果你只想安装 agents，不想安装自动触发提示 skills：
 
 ```bash
 npx github:Physicalyy/opencode-acceptance-agents --no-skills

@@ -13,14 +13,9 @@ Use this skill to route acceptance-testing requests to the right OpenCode agent.
 
 Trigger when the user says any of:
 
-- 生成验收用例
-- 生成测试用例
-- UI 验收用例
-- QA 用例
-- test cases
-- acceptance cases
-- 只生成，不执行
-- 不参考旧 test-run
+- 生成验收用例 / 生成测试用例 / UI 验收用例 / QA 用例 / 测试用例
+- test cases / acceptance cases / generate cases
+- 只生成，不执行 / 不参考旧 test-run / 不参考旧用例
 
 Route to agent:
 
@@ -39,12 +34,8 @@ Default behavior:
 
 Trigger when the user says any of:
 
-- 执行 UI 验收
-- 跑 Midscene
-- UI 自动化验收
-- 执行 P0/P1 UI 用例
-- rerun failed UI cases
-- rerun pending UI cases
+- 执行 UI 验收 / 跑 Midscene / UI 自动化验收 / 执行 P0/P1 UI 用例 / 开始测试 / 执行验收测试
+- rerun failed UI cases / rerun pending UI cases / run acceptance
 
 Route to agent:
 
@@ -63,11 +54,8 @@ Default behavior:
 
 Trigger when the user says any of:
 
-- 复核验收报告
-- 审查测试报告
-- 检查覆盖度
-- 看看验收是否充分
-- review acceptance report
+- 复核验收报告 / 审查测试报告 / 检查覆盖度 / 看看验收是否充分
+- review acceptance report / review report
 
 Route to agent:
 
@@ -85,9 +73,7 @@ Default behavior:
 
 Trigger when the user asks for a broad or full flow, such as:
 
-- 做完整验收
-- 跑完整 acceptance
-- finish acceptance gate
+- 做完整验收 / 跑完整 acceptance / finish acceptance gate / 完整验收流程
 
 Route through:
 
@@ -96,6 +82,25 @@ acceptance-agent
 ```
 
 The main session may split the work into stages and dispatch `acceptance-cases`, `acceptance-ui`, then `acceptance-review` as needed.
+
+### Fresh / 从头开始
+
+Trigger when the user says any of:
+
+- 从头开始 / 重新生成 / 忽略旧用例 / 忽略旧 test-cases
+- fresh / clean / ignore old cases / regenerate / 清空重来
+
+Behavior:
+
+Fresh mode means restarting from cases generation even if `test-cases.jsonl` or previous reports already exist. The stage chain is:
+
+```text
+cases → ui → review
+```
+
+1. `acceptance-cases`: regenerate cases from scratch, overwrite existing artifacts.
+2. `acceptance-ui`: execute all pending P0/P1 UI cases on the fresh set.
+3. `acceptance-review`: review the fresh report for coverage and evidence quality.
 
 ## Project Modes
 
