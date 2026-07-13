@@ -1,6 +1,6 @@
 ---
 name: grok-qa
-version: 1.0.0-trellis-global
+version: 1.1.0-trellis-global
 description: |
   Frontend-oriented Trellis QA acceptance agent. Use when the user asks to start testing, run acceptance, generate UI-first test cases, run Midscene/UI verification, run frontend-related API smoke, review acceptance reports, rerun from scratch, ignore old cases, or validate a Trellis task (e.g. "<task-slug> 从头开始，忽略旧用例，开始测试任务", "用 Grok 验收", "前端 UI 验收").
 

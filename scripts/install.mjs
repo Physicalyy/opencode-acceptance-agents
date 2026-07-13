@@ -12,6 +12,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
 
+const PACKAGE = JSON.parse(
+  fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'),
+);
+const PACKAGE_VERSION = PACKAGE.version || '0.0.0';
+
 const args = process.argv.slice(2);
 
 function readFlag(name) {
@@ -25,27 +30,32 @@ function hasFlag(name) {
 }
 
 function printHelp() {
-  console.log(`opencode-acceptance-agents installer
+  console.log(`opencode-acceptance-agents installer v${PACKAGE_VERSION}
 
 Usage:
   npx github:Physicalyy/opencode-acceptance-agents [options]
 
 Options:
-  --detect             Detect host tools + existing install; print JSON (for AI / scripts)
-  --interactive, -i    Detect, then ask which runtime to install (recommended for humans)
-  --runtime <name>     opencode | grok | all   (default: opencode; ignored with --interactive)
-  --target <project>   Target project directory. Defaults to current working directory.
-  --force              Overwrite existing agent/skill files.
-  --dry-run            Print planned changes without writing files.
-  --no-agents-md       Do not update AGENTS.md managed block(s).
-  --no-skills          Do not install skill packages.
-  --grok-scope <name>  user | project | both   (default: both; only for grok runtime)
-  --json               With install: also print a small result JSON line at the end
+  --detect             Detect host tools + existing install; print JSON (for AI)
+  --human              With --detect: human-readable instead of JSON
+  --interactive, -i    Detect, then ask which runtime to install
+  --yes, -y            Non-interactive: install detect's recommendedRuntime
+  --runtime <name>     opencode | grok | all   (default: opencode)
+  --target <project>   Target project directory (default: cwd)
+  --force              Overwrite existing agent/skill files
+  --dry-run            Print planned changes without writing
+  --no-agents-md       Do not update AGENTS.md managed block(s)
+  --no-skills          Do not install skill packages
+  --no-install-skill   Do not install project skill install-acceptance-agents
+  --grok-scope <name>  user | project | both   (default: both)
+  --json               Print result JSON after install
+  --verify             After install (or alone with --runtime), verify files
+  --selfcheck          Verify this package templates are complete; exit 0/1
 
-AI agents:
-  1. Run: node scripts/install.mjs --detect --target <project>
-  2. Present runtime choices to the user (do NOT dump a copy-paste prompt)
-  3. After user picks, run install with --runtime <choice>
+AI agents (required flow):
+  1. node scripts/install.mjs --detect --target <project>
+  2. Present choices[] to the user (do NOT dump a copy-paste prompt)
+  3. node scripts/install.mjs --runtime <id> --target <project> [--force] --verify --json
 `);
 }
 
@@ -61,6 +71,14 @@ const templateOpenCodeAgentsDir = path.join(rootDir, 'templates', 'opencode', 'a
 const templateOpenCodeSkillsDir = path.join(rootDir, 'templates', 'opencode', 'skills');
 const templateGrokAgentsDir = path.join(rootDir, 'templates', 'grok', 'agents');
 const templateGrokSkillsDir = path.join(rootDir, 'templates', 'grok', 'skills');
+const templateInstallSkill = path.join(rootDir, 'templates', 'ai', 'install-skill', 'SKILL.md');
+
+const OPENCODE_AGENT_NAMES = [
+  'acceptance-agent.md',
+  'acceptance-cases.md',
+  'acceptance-ui.md',
+  'acceptance-review.md',
+];
 
 function log(message) {
   console.log(`[opencode-acceptance-agents] ${message}`);
@@ -83,6 +101,21 @@ function pathExists(p) {
   }
 }
 
+function listTemplateHealth() {
+  const required = [
+    ...OPENCODE_AGENT_NAMES.map((n) => path.join('templates', 'opencode', 'agents', n)),
+    path.join('templates', 'opencode', 'skills', 'acceptance-agents', 'SKILL.md'),
+    path.join('templates', 'opencode', 'skills', 'test-case-generator', 'SKILL.md'),
+    path.join('templates', 'grok', 'agents', 'grok-qa.md'),
+    path.join('templates', 'grok', 'skills', 'grok-qa-acceptance', 'SKILL.md'),
+    path.join('templates', 'grok', 'skills', 'grok-qa-acceptance', 'references', 'state-machine.md'),
+    path.join('templates', 'grok', 'skills', 'grok-qa-acceptance', 'references', 'project-defaults.md'),
+    path.join('templates', 'ai', 'install-skill', 'SKILL.md'),
+  ];
+  const missing = required.filter((rel) => !pathExists(path.join(rootDir, rel)));
+  return { ok: missing.length === 0, missing, requiredCount: required.length };
+}
+
 /**
  * Detect environment for AI / interactive install.
  * AI should call this first, then ask the user to choose — never only paste a prompt.
@@ -94,23 +127,31 @@ function detectEnvironment(targetDir) {
   const hasTrellis = pathExists(path.join(targetDir, '.trellis'));
   const hasProjectOpenCode = pathExists(path.join(targetDir, '.opencode'));
   const hasProjectGrokAgent = pathExists(path.join(targetDir, '.grok', 'agents', 'grok-qa.md'));
-  const hasProjectGrokSkill = pathExists(path.join(targetDir, '.agents', 'skills', 'grok-qa-acceptance', 'SKILL.md'));
+  const hasProjectGrokSkill = pathExists(
+    path.join(targetDir, '.agents', 'skills', 'grok-qa-acceptance', 'SKILL.md'),
+  );
   const hasUserGrokAgent = pathExists(path.join(userGrokDir, 'agents', 'grok-qa.md'));
-  const hasUserGrokSkill = pathExists(path.join(userGrokDir, 'skills', 'grok-qa-acceptance', 'SKILL.md'));
+  const hasUserGrokSkill = pathExists(
+    path.join(userGrokDir, 'skills', 'grok-qa-acceptance', 'SKILL.md'),
+  );
   const hasOpenCodeAcceptance =
     pathExists(path.join(targetDir, '.opencode', 'agents', 'acceptance-ui.md')) ||
     pathExists(path.join(targetDir, '.opencode', 'agents', 'acceptance-agent.md'));
+  const hasInstallSkill = pathExists(
+    path.join(targetDir, '.agents', 'skills', 'install-acceptance-agents', 'SKILL.md'),
+  );
+  const hasAcceptanceDefaults = pathExists(path.join(targetDir, '.trellis', 'acceptance.defaults.md'));
 
   const hosts = [];
-  if (hasGrokCli || hasUserGrokDir || hasProjectGrokAgent) hosts.push('grok');
+  if (hasGrokCli || hasUserGrokDir || hasProjectGrokAgent || hasUserGrokAgent) hosts.push('grok');
   if (hasOpenCodeCli || hasProjectOpenCode || hasOpenCodeAcceptance) hosts.push('opencode');
 
-  // Recommendation
   let recommendedRuntime = 'all';
-  let recommendReason = 'Both Grok and OpenCode signals found, or none — default to offering all options.';
+  let recommendReason =
+    'Both Grok and OpenCode signals found, or none — default to offering all options.';
 
   const onlyGrok =
-    (hasGrokCli || hasUserGrokDir || hasProjectGrokAgent) &&
+    (hasGrokCli || hasUserGrokDir || hasProjectGrokAgent || hasUserGrokAgent) &&
     !hasOpenCodeCli &&
     !hasProjectOpenCode &&
     !hasOpenCodeAcceptance;
@@ -135,6 +176,24 @@ function detectEnvironment(targetDir) {
     recommendReason = 'No host clearly detected; recommend offering all options to the user.';
   }
 
+  const gaps = [];
+  if (hasProjectGrokAgent && !hasProjectGrokSkill) {
+    gaps.push('project grok-qa agent without grok-qa-acceptance skill');
+  }
+  if (hasUserGrokAgent && !hasUserGrokSkill) {
+    gaps.push('user grok-qa agent without grok-qa-acceptance skill');
+  }
+  if (hasOpenCodeAcceptance) {
+    for (const name of OPENCODE_AGENT_NAMES) {
+      if (!pathExists(path.join(targetDir, '.opencode', 'agents', name))) {
+        gaps.push(`missing OpenCode agent ${name}`);
+      }
+    }
+  }
+  if (hasTrellis && !hasAcceptanceDefaults && (hasProjectGrokAgent || hasUserGrokAgent)) {
+    gaps.push('Trellis project without .trellis/acceptance.defaults.md (optional but recommended for Grok)');
+  }
+
   const choices = [
     {
       id: 'grok',
@@ -156,7 +215,10 @@ function detectEnvironment(targetDir) {
     },
   ];
 
+  const templateHealth = listTemplateHealth();
+
   return {
+    packageVersion: PACKAGE_VERSION,
     target: targetDir,
     hostsDetected: hosts,
     tools: {
@@ -172,26 +234,43 @@ function detectEnvironment(targetDir) {
       grokProjectSkill: hasProjectGrokSkill,
       openCodeAcceptance: hasOpenCodeAcceptance,
       projectOpenCodeDir: hasProjectOpenCode,
+      installSkill: hasInstallSkill,
+      acceptanceDefaults: hasAcceptanceDefaults,
     },
+    gaps,
+    templateHealth,
     recommendedRuntime,
     recommendReason,
     choices,
+    installCommands: {
+      afterUserChooses: `node scripts/install.mjs --runtime <id> --target "${targetDir}" --verify --json`,
+      forceRefresh: `node scripts/install.mjs --runtime <id> --target "${targetDir}" --force --verify --json`,
+      yesRecommended: `node scripts/install.mjs --yes --target "${targetDir}" --verify --json`,
+    },
     aiInstructions: [
       'Do NOT paste a long install prompt for the user to copy elsewhere.',
-      'Present the choices[] list (or equivalent) and let the user pick one id: grok | opencode | all.',
-      'Mark the choice where recommended=true as recommended.',
-      'After the user chooses, run: node scripts/install.mjs --runtime <id> --target <target> [--force]',
-      'If already installed and user wants refresh, pass --force.',
+      'Present the choices[] list and let the user pick one id: grok | opencode | all.',
+      'Mark the choice where recommended=true as recommended; explain recommendReason briefly.',
+      'If gaps is non-empty, mention incomplete install and offer --force refresh.',
+      'After the user chooses, run installCommands.afterUserChooses with <id> replaced.',
       'After install: Grok → new session or /config-agents select grok-qa; OpenCode → restart OpenCode.',
+      'Never mix OpenCode and Grok evidence prefixes in one acceptance run.',
     ],
   };
 }
 
 function printDetectHuman(report) {
-  log(`detect target: ${report.target}`);
+  log(`v${report.packageVersion} detect target: ${report.target}`);
   log(`hosts: ${report.hostsDetected.join(', ') || '(none clear)'}`);
   log(`trellis: ${report.tools.trellis}`);
   log(`recommended: ${report.recommendedRuntime} — ${report.recommendReason}`);
+  if (report.gaps?.length) {
+    log('gaps:');
+    for (const g of report.gaps) log(`  - ${g}`);
+  }
+  if (report.templateHealth && !report.templateHealth.ok) {
+    log(`template package incomplete: missing ${report.templateHealth.missing.join(', ')}`);
+  }
   log('choices:');
   for (const c of report.choices) {
     log(`  [${c.id}] ${c.label}${c.recommended ? ' (recommended)' : ''} — ${c.description}`);
@@ -206,10 +285,10 @@ async function promptInteractive(report) {
   const rl = readline.createInterface({ input, output });
   try {
     console.log('');
-    console.log('Install acceptance QA agents — pick a runtime:');
+    console.log(`Install acceptance QA agents v${PACKAGE_VERSION} — pick a runtime:`);
     console.log('');
     report.choices.forEach((c, i) => {
-      const mark = c.recommended ? ' ← recommended' : '';
+      const mark = c.recommended ? ' <- recommended' : '';
       console.log(`  ${i + 1}) ${c.id.padEnd(8)} ${c.label}${mark}`);
       console.log(`      ${c.description}`);
     });
@@ -229,8 +308,12 @@ async function promptInteractive(report) {
 
     let force = hasFlag('--force');
     const anyInstalled = Object.values(report.installed).some(Boolean);
-    if (anyInstalled && !force) {
-      const over = (await rl.question('Existing install detected. Overwrite with --force? [y/N]: ')).trim().toLowerCase();
+    if ((anyInstalled || report.gaps?.length) && !force) {
+      const over = (
+        await rl.question('Existing/incomplete install detected. Overwrite with --force? [y/N]: ')
+      )
+        .trim()
+        .toLowerCase();
       force = over === 'y' || over === 'yes';
     }
 
@@ -260,15 +343,16 @@ function copyFile(src, dest, relBase, force, dryRun) {
   const exists = fs.existsSync(dest);
   if (exists && !force) {
     log(`skip existing ${path.relative(relBase, dest) || dest} (use --force to overwrite)`);
-    return;
+    return false;
   }
   if (dryRun) {
     log(`${exists ? 'overwrite' : 'copy'} ${path.relative(rootDir, src)} -> ${dest}`);
-    return;
+    return true;
   }
   ensureDir(path.dirname(dest), dryRun);
   fs.copyFileSync(src, dest);
   log(`${exists ? 'overwrote' : 'installed'} ${path.relative(relBase, dest) || dest}`);
+  return true;
 }
 
 function copyTree(srcDir, destDir, relBase, force, dryRun) {
@@ -324,18 +408,41 @@ function showModelHint() {
   });
 
   if (result.status !== 0) {
-    log('opencode models could not be checked. After install, run `opencode models` and adjust agent model fields if needed.');
+    log(
+      'opencode models could not be checked. After install, run `opencode models` and adjust agent model fields if needed.',
+    );
     return;
   }
 
-  const models = result.stdout.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+  const models = result.stdout
+    .split(/\r?\n/)
+    .map((s) => s.trim())
+    .filter(Boolean);
   const expected = ['opencode-go/deepseek-v4-pro', 'opencode-go/qwen3.6-plus', 'opencode/gpt-5.5'];
   const missing = expected.filter((m) => !models.includes(m));
   if (missing.length) {
-    log(`model warning: missing ${missing.join(', ')}. Edit .opencode/agents/acceptance-*.md model fields if needed.`);
+    log(
+      `model warning: missing ${missing.join(', ')}. Edit .opencode/agents/acceptance-*.md model fields if needed.`,
+    );
   } else {
     log('model check passed: default OpenCode acceptance models are available.');
   }
+}
+
+function installProjectInstallSkill(ctx) {
+  if (!ctx.installInstallSkill || !ctx.installSkills) return;
+  if (!pathExists(templateInstallSkill)) {
+    log('install-acceptance-agents skill template missing; skip');
+    return;
+  }
+  const dest = path.join(
+    ctx.targetDir,
+    '.agents',
+    'skills',
+    'install-acceptance-agents',
+    'SKILL.md',
+  );
+  copyFile(templateInstallSkill, dest, ctx.targetDir, ctx.force, ctx.dryRun);
 }
 
 function installOpenCodeRuntime(ctx) {
@@ -353,7 +460,13 @@ function installOpenCodeRuntime(ctx) {
 
   for (const name of fs.readdirSync(templateOpenCodeAgentsDir)) {
     if (!name.endsWith('.md')) continue;
-    copyFile(path.join(templateOpenCodeAgentsDir, name), path.join(targetAgentsDir, name), targetDir, force, dryRun);
+    copyFile(
+      path.join(templateOpenCodeAgentsDir, name),
+      path.join(targetAgentsDir, name),
+      targetDir,
+      force,
+      dryRun,
+    );
   }
 
   if (installSkills) {
@@ -374,7 +487,8 @@ When generating cases, default to UI-first / Midscene-ready cases and avoid unre
 When the user asks to execute UI/Midscene acceptance, prefer the \`acceptance-ui\` agent.
 When the user asks to review an acceptance report, prefer the \`acceptance-review\` agent.
 When the project has \`.trellis/\`, read Trellis task artifacts first; otherwise write acceptance artifacts under \`acceptance-artifacts/\`.
-Do not mix OpenCode acceptance runs with Grok \`grok-qa\` evidence prefixes in one run.`,
+Do not mix OpenCode acceptance runs with Grok \`grok-qa\` evidence prefixes in one run.
+If the user asks to install or reinstall acceptance agents, prefer skill \`install-acceptance-agents\` (detect → choices → install).`,
       targetDir,
       dryRun,
     );
@@ -410,6 +524,45 @@ function installGrokInto(baseDir, agentsSub, skillsSub, label, ctx) {
   }
 }
 
+function maybeWriteAcceptanceDefaultsStub(ctx) {
+  if (!ctx.writeDefaultsStub) return;
+  const trellisDir = path.join(ctx.targetDir, '.trellis');
+  if (!pathExists(trellisDir)) return;
+  const dest = path.join(trellisDir, 'acceptance.defaults.md');
+  if (pathExists(dest) && !ctx.force) {
+    log('skip existing .trellis/acceptance.defaults.md');
+    return;
+  }
+  const body = `# Acceptance Defaults
+
+Project runtime defaults for grok-qa. No real passwords in this file.
+
+## URLs
+
+- \`frontend_url\`: http://localhost:<port>
+- \`api_base\`: http://localhost:<port>/<api-prefix>
+
+## Auth
+
+- \`login\`: user-provided | env:QA_USER + env:QA_PASS
+
+## Edit boundary (\`no_edit_globs\`)
+
+- (list product source dirs that QA must not edit)
+
+## Notes
+
+- Fill real ports/routes for this project.
+- Optional local override: \`.trellis/acceptance.defaults.local.md\`
+`;
+  if (ctx.dryRun) {
+    log(`write stub ${dest}`);
+    return;
+  }
+  fs.writeFileSync(dest, body, 'utf8');
+  log(`wrote ${path.relative(ctx.targetDir, dest)}`);
+}
+
 function installGrokRuntime(ctx) {
   const { targetDir, dryRun, updateAgentsMd, grokUser, grokProject } = ctx;
 
@@ -418,6 +571,7 @@ function installGrokRuntime(ctx) {
   }
   if (grokProject) {
     installGrokInto(targetDir, ['.grok', 'agents'], ['.agents', 'skills'], 'project', ctx);
+    maybeWriteAcceptanceDefaultsStub(ctx);
   }
 
   if (updateAgentsMd && grokProject) {
@@ -433,6 +587,7 @@ Full flow: cases -> ui -> api(narrow) -> review -> gate.
 Use skill \`grok-qa-acceptance\` contracts. Write \`dispatchMode=grok-agent\` and evidence \`evidence/grok-qa-routing-*.jsonl\`; prefer report \`test-run-*-grok-acceptance.md\`.
 When the project has \`.trellis/\`, read task artifacts and optional \`.trellis/acceptance.defaults.md\` first.
 Do not call OpenCode \`/local-acceptance/*\` or mix OpenCode routing evidence filenames in a Grok run.
+If the user asks to install or reinstall acceptance agents, prefer skill \`install-acceptance-agents\` (detect → choices → install).
 After install, open a new Grok session or use \`/config-agents\` to select \`grok-qa\`.`,
       targetDir,
       dryRun,
@@ -449,6 +604,49 @@ After install, open a new Grok session or use \`/config-agents\` to select \`gro
   }
 }
 
+function verifyInstall(targetDir, runtime, grokScope, dryRun) {
+  const checks = [];
+  const wantOpenCode = runtime === 'opencode' || runtime === 'all';
+  const wantGrok = runtime === 'grok' || runtime === 'all';
+  const grokUser = wantGrok && (grokScope === 'user' || grokScope === 'both');
+  const grokProject = wantGrok && (grokScope === 'project' || grokScope === 'both');
+
+  const check = (id, p, required = true) => {
+    const ok = dryRun ? true : pathExists(p);
+    checks.push({ id, path: p, ok, required });
+    return ok;
+  };
+
+  if (wantOpenCode) {
+    for (const name of OPENCODE_AGENT_NAMES) {
+      check(`opencode-agent:${name}`, path.join(targetDir, '.opencode', 'agents', name));
+    }
+    check(
+      'opencode-skill:acceptance-agents',
+      path.join(targetDir, '.opencode', 'skills', 'acceptance-agents', 'SKILL.md'),
+    );
+  }
+
+  if (grokUser) {
+    check('grok-user-agent', path.join(userGrokDir, 'agents', 'grok-qa.md'));
+    check(
+      'grok-user-skill',
+      path.join(userGrokDir, 'skills', 'grok-qa-acceptance', 'SKILL.md'),
+    );
+  }
+  if (grokProject) {
+    check('grok-project-agent', path.join(targetDir, '.grok', 'agents', 'grok-qa.md'));
+    check(
+      'grok-project-skill',
+      path.join(targetDir, '.agents', 'skills', 'grok-qa-acceptance', 'SKILL.md'),
+    );
+  }
+
+  const requiredFailed = checks.filter((c) => c.required && !c.ok);
+  const ok = requiredFailed.length === 0;
+  return { ok, dryRun: !!dryRun, checks, failed: requiredFailed.map((c) => c.id) };
+}
+
 function runInstall(options) {
   const {
     targetDir,
@@ -457,12 +655,20 @@ function runInstall(options) {
     dryRun,
     updateAgentsMd,
     installSkills,
+    installInstallSkill,
+    writeDefaultsStub,
     grokScope,
     emitJson,
+    doVerify,
   } = options;
 
   if (!fs.existsSync(targetDir)) {
     throw new Error(`Target directory does not exist: ${targetDir}`);
+  }
+
+  const health = listTemplateHealth();
+  if (!health.ok) {
+    throw new Error(`Package templates incomplete: missing ${health.missing.join(', ')}`);
   }
 
   const validRuntimes = new Set(['opencode', 'grok', 'all']);
@@ -485,36 +691,67 @@ function runInstall(options) {
     dryRun,
     updateAgentsMd,
     installSkills,
+    installInstallSkill,
+    writeDefaultsStub,
     grokUser,
     grokProject,
   };
 
-  log(`target: ${targetDir}`);
+  log(`v${PACKAGE_VERSION} target: ${targetDir}`);
   log(`runtime: ${runtime}`);
   if (installGrok) log(`grok-scope: ${grokScope}`);
 
   if (installOpenCode) installOpenCodeRuntime(ctx);
   if (installGrok) installGrokRuntime(ctx);
+  // Always drop install skill into project so future "安装验收 agent" is discoverable
+  if (installOpenCode || installGrok) installProjectInstallSkill(ctx);
+
+  let verification = null;
+  if (doVerify) {
+    verification = verifyInstall(targetDir, runtime, grokScope, dryRun);
+    if (verification.ok) {
+      log(`verify: OK (${verification.checks.length} checks)`);
+    } else {
+      log(`verify: FAILED ${verification.failed.join(', ')}`);
+    }
+  }
 
   log('done.');
 
+  const result = {
+    ok: verification ? verification.ok : true,
+    packageVersion: PACKAGE_VERSION,
+    target: targetDir,
+    runtime,
+    grokScope: installGrok ? grokScope : null,
+    dryRun,
+    verification,
+    nextSteps:
+      runtime === 'grok'
+        ? [
+            'New Grok session or /config-agents',
+            'Select grok-qa',
+            'Fill .trellis/acceptance.defaults.md if Trellis',
+            'Ask to accept a Trellis task',
+          ]
+        : runtime === 'opencode'
+          ? ['Restart OpenCode', 'Use acceptance-cases / acceptance-ui / acceptance-review']
+          : [
+              'Restart OpenCode',
+              'New Grok session or /config-agents for grok-qa',
+              'Do not mix evidence prefixes',
+            ],
+  };
+
   if (emitJson) {
-    console.log(
-      JSON.stringify({
-        ok: true,
-        target: targetDir,
-        runtime,
-        grokScope: installGrok ? grokScope : null,
-        dryRun,
-        nextSteps:
-          runtime === 'grok'
-            ? ['New Grok session or /config-agents', 'Select grok-qa', 'Ask to accept a Trellis task']
-            : runtime === 'opencode'
-              ? ['Restart OpenCode', 'Use acceptance-cases / acceptance-ui / acceptance-review']
-              : ['Restart OpenCode', 'New Grok session or /config-agents for grok-qa', 'Do not mix evidence prefixes'],
-      }),
-    );
+    console.log(JSON.stringify(result, null, 2));
   }
+
+  if (verification && !verification.ok && !dryRun) {
+    process.exitCode = 1;
+  }
+
+  return result;
 }
 
 async function main() {
@@ -523,16 +760,27 @@ async function main() {
   const dryRun = hasFlag('--dry-run');
   const updateAgentsMd = !hasFlag('--no-agents-md');
   const installSkills = !hasFlag('--no-skills');
+  const installInstallSkill = !hasFlag('--no-install-skill');
+  const writeDefaultsStub = !hasFlag('--no-defaults-stub');
   const emitJson = hasFlag('--json');
+  const doVerify = hasFlag('--verify');
   const wantDetect = hasFlag('--detect');
   const wantInteractive = hasFlag('--interactive') || hasFlag('-i');
+  const wantYes = hasFlag('--yes') || hasFlag('-y');
+  const wantSelfcheck = hasFlag('--selfcheck');
+
+  if (wantSelfcheck) {
+    const health = listTemplateHealth();
+    const payload = { packageVersion: PACKAGE_VERSION, ...health };
+    console.log(JSON.stringify(payload, null, 2));
+    process.exit(health.ok ? 0 : 1);
+  }
 
   if (wantDetect) {
     const report = detectEnvironment(targetDir);
     if (hasFlag('--human')) {
       printDetectHuman(report);
     } else {
-      // Default JSON for AI agents
       console.log(JSON.stringify(report, null, 2));
     }
     return;
@@ -558,13 +806,86 @@ async function main() {
       dryRun,
       updateAgentsMd,
       installSkills,
+      installInstallSkill,
+      writeDefaultsStub,
       grokScope: picked.grokScope,
       emitJson,
+      doVerify: true,
     });
     return;
   }
 
-  const runtimeRaw = (readFlag('--runtime') || 'opencode').toLowerCase();
+  if (wantYes) {
+    const report = detectEnvironment(targetDir);
+    log(`--yes: installing recommended runtime=${report.recommendedRuntime}`);
+    runInstall({
+      targetDir,
+      runtime: report.recommendedRuntime,
+      force: force || report.gaps.length > 0,
+      dryRun,
+      updateAgentsMd,
+      installSkills,
+      installInstallSkill,
+      writeDefaultsStub,
+      grokScope: (readFlag('--grok-scope') || 'both').toLowerCase(),
+      emitJson,
+      doVerify: true,
+    });
+    return;
+  }
+
+  // Explicit runtime or legacy default opencode
+  const hasRuntimeFlag = hasFlag('--runtime') || readFlag('--runtime') !== undefined;
+  let runtimeRaw = (readFlag('--runtime') || 'opencode').toLowerCase();
+
+  // If user only passed --verify without install intent, verify what is there
+  if (doVerify && !hasRuntimeFlag && !force && !dryRun) {
+    const report = detectEnvironment(targetDir);
+    const runtime =
+      report.installed.openCodeAcceptance &&
+      (report.installed.grokProjectAgent || report.installed.grokUserAgent)
+        ? 'all'
+        : report.installed.openCodeAcceptance
+          ? 'opencode'
+          : report.installed.grokProjectAgent || report.installed.grokUserAgent
+            ? 'grok'
+            : 'all';
+    const verification = verifyInstall(
+      targetDir,
+      runtime,
+      (readFlag('--grok-scope') || 'both').toLowerCase(),
+      false,
+    );
+    console.log(JSON.stringify({ packageVersion: PACKAGE_VERSION, runtime, verification }, null, 2));
+    process.exit(verification.ok ? 0 : 1);
+  }
+
+  // TTY with no explicit runtime → interactive (better UX than silent opencode-only)
+  if (!hasRuntimeFlag && process.stdin.isTTY && !hasFlag('--no-auto-interactive')) {
+    log('no --runtime on TTY: entering interactive mode (pass --runtime opencode to skip)');
+    const report = detectEnvironment(targetDir);
+    printDetectHuman(report);
+    const picked = await promptInteractive(report);
+    if (!picked) {
+      log('cancelled.');
+      process.exit(0);
+    }
+    runInstall({
+      targetDir,
+      runtime: picked.runtime,
+      force: picked.force || force,
+      dryRun,
+      updateAgentsMd,
+      installSkills,
+      installInstallSkill,
+      writeDefaultsStub,
+      grokScope: picked.grokScope,
+      emitJson,
+      doVerify: true,
+    });
+    return;
+  }
+
   const grokScopeRaw = (readFlag('--grok-scope') || 'both').toLowerCase();
 
   runInstall({
@@ -574,8 +895,11 @@ async function main() {
     dryRun,
     updateAgentsMd,
     installSkills,
+    installInstallSkill,
+    writeDefaultsStub,
     grokScope: grokScopeRaw,
     emitJson,
+    doVerify: doVerify || false,
   });
 }
 

@@ -21,40 +21,46 @@ description: >
 
 ### 1. Detect
 
-From this package root (or via `npx github:Physicalyy/opencode-acceptance-agents`):
-
 ```bash
 node scripts/install.mjs --detect --target <project-root>
+# or: npx --yes github:Physicalyy/opencode-acceptance-agents --detect --target <project-root>
 ```
 
-Parse JSON: `recommendedRuntime`, `choices`, `installed`, `recommendReason`.
+Parse JSON: `recommendedRuntime`, `choices`, `installed`, `gaps`, `recommendReason`, `installCommands`.
 
 ### 2. Ask the user
 
-Show three options; mark recommended. Example shape:
+Show three options; mark recommended. Use the host choice UI when available.
 
-- Grok only (`grok-qa`)
-- OpenCode only (`acceptance-*`)
+- Grok only (`grok`)
+- OpenCode only (`opencode`)
 - Both (`all`)
 
-If anything in `installed` is true, ask whether to overwrite (`--force`).
+If `gaps` is non-empty or `installed` has true flags, ask whether to overwrite (`--force`).
 
 Skip the menu only when the user already said e.g. “只装 Grok” or “只装 OpenCode”.
 
 ### 3. Install
 
 ```bash
-node scripts/install.mjs --runtime <chosen> --target <project-root> [--force] [--json]
+node scripts/install.mjs --runtime <chosen> --target <project-root> [--force] --verify --json
 ```
 
 Optional: `--grok-scope user|project|both` (default `both`).
 
+Non-interactive recommended install:
+
+```bash
+node scripts/install.mjs --yes --target <project-root> --verify --json
+```
+
 ### 4. Confirm
 
-Report installed paths and next steps:
+Read `verification.ok` from JSON. Report paths and next steps:
 
 - Grok: new session or `/config-agents` → select `grok-qa`
 - OpenCode: restart OpenCode
+- Trellis: fill `.trellis/acceptance.defaults.md` when using Grok
 
 ## Isolation
 

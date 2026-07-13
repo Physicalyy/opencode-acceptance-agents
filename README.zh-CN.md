@@ -85,10 +85,16 @@ npx github:Physicalyy/opencode-acceptance-agents --runtime all --force
 
 | 参数 | 含义 |
 |------|------|
-| `--runtime opencode\|grok\|all` | 装哪条轨（默认 opencode） |
-| `--grok-scope user\|project\|both` | Grok 装用户级 / 项目级 / 都装（默认 both） |
+| `--detect` | 输出 JSON（AI 用：选项 + 推荐） |
+| `--interactive` / `-i` | 人类菜单选择 |
+| `--yes` / `-y` | 不询问，直接装推荐 runtime |
+| `--runtime opencode\|grok\|all` | 指定轨（TTY 下不写则进交互） |
+| `--grok-scope user\|project\|both` | Grok 范围（默认 both） |
+| `--verify` | 安装后校验文件 |
+| `--selfcheck` | 校验本仓库模板完整性 |
 | `--target <dir>` | 项目根目录 |
 | `--force` | 覆盖已有文件 |
+| `--json` | 输出结果 JSON |
 | `--dry-run` | 只打印 |
 | `--no-agents-md` | 不改 AGENTS.md |
 | `--no-skills` | 不装 skill |

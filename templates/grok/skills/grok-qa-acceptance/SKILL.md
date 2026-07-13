@@ -1,7 +1,8 @@
 ---
 name: grok-qa-acceptance
-version: 1.0.0-trellis-global
-source: generalized from HEMS-git grok-qa-acceptance @ 2026-07-12
+version: 1.1.0-trellis-global
+package: opencode-acceptance-agents
+source: generalized from HEMS-git grok-qa-acceptance; shipped via templates/grok
 description: "Contract library and playbook for the Grok QA agent (grok-qa). Trellis frontend-oriented acceptance: UI-first cases, Midscene UI, narrow API smoke, review, and gate. Use when running or maintaining Grok-path acceptance. Prefer the grok-qa agent as entry identity."
 ---
 

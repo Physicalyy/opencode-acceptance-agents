@@ -1,21 +1,45 @@
 {
   "name": "opencode-acceptance-agents",
-  "version": "0.2.0",
-  "description": "Acceptance agents for OpenCode (multi-agent) and Grok (grok-qa): UI-first cases, Midscene execution, review, and gate.",
+  "version": "0.3.0",
+  "description": "Acceptance agents for OpenCode (multi-agent) and Grok (grok-qa): UI-first cases, Midscene execution, review, and gate. Installer detects hosts and presents runtime choices.",
   "type": "module",
   "bin": {
     "opencode-acceptance-agents": "./scripts/install.mjs"
   },
   "scripts": {
     "install:local": "node scripts/install.mjs",
-    "install:opencode": "node scripts/install.mjs --runtime opencode",
-    "install:grok": "node scripts/install.mjs --runtime grok",
-    "install:all": "node scripts/install.mjs --runtime all",
+    "install:opencode": "node scripts/install.mjs --runtime opencode --verify",
+    "install:grok": "node scripts/install.mjs --runtime grok --verify",
+    "install:all": "node scripts/install.mjs --runtime all --verify",
     "install:interactive": "node scripts/install.mjs --interactive",
+    "install:yes": "node scripts/install.mjs --yes --verify --json",
     "detect": "node scripts/install.mjs --detect",
+    "verify": "node scripts/install.mjs --verify",
+    "selfcheck": "node scripts/install.mjs --selfcheck",
     "dry-run": "node scripts/install.mjs --dry-run",
     "dry-run:grok": "node scripts/install.mjs --runtime grok --dry-run",
     "dry-run:all": "node scripts/install.mjs --runtime all --dry-run"
+  },
+  "files": [
+    "scripts/",
+    "templates/",
+    "AGENTS.md",
+    "AI-INSTALL.md",
+    "README.md",
+    "README.zh-CN.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Physicalyy/opencode-acceptance-agents.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Physicalyy/opencode-acceptance-agents/issues"
+  },
+  "homepage": "https://github.com/Physicalyy/opencode-acceptance-agents#readme",
+  "engines": {
+    "node": ">=18"
   },
   "keywords": [
     "opencode",

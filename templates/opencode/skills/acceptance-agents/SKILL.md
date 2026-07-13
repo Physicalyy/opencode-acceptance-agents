@@ -120,6 +120,23 @@ If `.trellis/` does not exist:
 2. If no source is specified, ask for the smallest missing requirement source.
 3. Write outputs under `acceptance-artifacts/`.
 
+## Isolation From Grok Path
+
+This skill is **OpenCode-only**.
+
+- Do **not** call or emulate Grok agent `grok-qa` from OpenCode.
+- Do **not** write `dispatchMode=grok-agent` or `evidence/grok-qa-routing-*.jsonl`.
+- Prefer OpenCode reports such as `test-run-YYYYMMDD-acceptance.md` and OpenCode routing evidence prefixes.
+- If the user asks for Grok acceptance, tell them to use Grok / agent `grok-qa` instead of mixing paths.
+
+## Install / reinstall agents
+
+When the user asks to **install or reinstall** acceptance agents:
+
+1. Prefer skill `install-acceptance-agents` if present in the project.
+2. Or run the package installer: detect → present choices (`grok` / `opencode` / `all`) → install.
+3. Do **not** dump a long copy-paste prompt for the user.
+
 ## Safety Rules
 
 - Do not write secrets, API keys, tokens, or environment files.

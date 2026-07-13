@@ -67,11 +67,17 @@ npx github:Physicalyy/opencode-acceptance-agents --runtime all --force
 
 | Flag | Meaning |
 |------|---------|
-| `--runtime opencode\|grok\|all` | Which product path to install (default `opencode`) |
-| `--grok-scope user\|project\|both` | Grok install scope (default `both`) |
+| `--detect` | JSON environment report for AI (choices + recommendation) |
+| `--interactive` / `-i` | Human menu after detect |
+| `--yes` / `-y` | Install `recommendedRuntime` without a menu |
+| `--runtime opencode\|grok\|all` | Explicit path (TTY with no flag → interactive) |
+| `--grok-scope user\|project\|both` | Grok scope (default `both`) |
+| `--verify` | Post-install file checks |
+| `--selfcheck` | Validate package templates |
 | `--target <dir>` | Project root (default cwd) |
 | `--force` | Overwrite existing files |
 | `--dry-run` | Print only |
+| `--json` | Emit result JSON |
 | `--no-agents-md` | Skip AGENTS.md managed blocks |
 | `--no-skills` | Skip skill packages |
 

@@ -8,3 +8,8 @@ pnpm-debug.log*
 .env
 .env.*
 !.env.example
+# Local dry-run install artifacts (if installer pointed at this repo)
+.opencode/
+.grok/
+acceptance-artifacts/
+.agents/skills/grok-qa-acceptance/
