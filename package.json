@@ -1,22 +1,31 @@
 {
   "name": "opencode-acceptance-agents",
-  "version": "0.1.0",
-  "description": "OpenCode acceptance agents for UI-first test case generation, Midscene execution, and report review.",
+  "version": "0.2.0",
+  "description": "Acceptance agents for OpenCode (multi-agent) and Grok (grok-qa): UI-first cases, Midscene execution, review, and gate.",
   "type": "module",
   "bin": {
     "opencode-acceptance-agents": "./scripts/install.mjs"
   },
   "scripts": {
     "install:local": "node scripts/install.mjs",
-    "dry-run": "node scripts/install.mjs --dry-run"
+    "install:opencode": "node scripts/install.mjs --runtime opencode",
+    "install:grok": "node scripts/install.mjs --runtime grok",
+    "install:all": "node scripts/install.mjs --runtime all",
+    "install:interactive": "node scripts/install.mjs --interactive",
+    "detect": "node scripts/install.mjs --detect",
+    "dry-run": "node scripts/install.mjs --dry-run",
+    "dry-run:grok": "node scripts/install.mjs --runtime grok --dry-run",
+    "dry-run:all": "node scripts/install.mjs --runtime all --dry-run"
   },
   "keywords": [
     "opencode",
+    "grok",
     "acceptance",
     "agents",
     "midscene",
     "ui-testing",
-    "trellis"
+    "trellis",
+    "grok-qa"
   ],
   "license": "MIT"
 }
