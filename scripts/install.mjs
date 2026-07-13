@@ -69,6 +69,7 @@ const userGrokDir = path.join(homeDir, '.grok');
 
 const templateOpenCodeAgentsDir = path.join(rootDir, 'templates', 'opencode', 'agents');
 const templateOpenCodeSkillsDir = path.join(rootDir, 'templates', 'opencode', 'skills');
+const templateOpenCodeCommandsDir = path.join(rootDir, 'templates', 'opencode', 'commands');
 const templateGrokAgentsDir = path.join(rootDir, 'templates', 'grok', 'agents');
 const templateGrokSkillsDir = path.join(rootDir, 'templates', 'grok', 'skills');
 const templateInstallSkill = path.join(rootDir, 'templates', 'ai', 'install-skill', 'SKILL.md');
@@ -77,6 +78,7 @@ const OPENCODE_AGENT_NAMES = [
   'acceptance-agent.md',
   'acceptance-cases.md',
   'acceptance-ui.md',
+  'acceptance-api.md',
   'acceptance-review.md',
 ];
 
@@ -106,6 +108,8 @@ function listTemplateHealth() {
     ...OPENCODE_AGENT_NAMES.map((n) => path.join('templates', 'opencode', 'agents', n)),
     path.join('templates', 'opencode', 'skills', 'acceptance-agents', 'SKILL.md'),
     path.join('templates', 'opencode', 'skills', 'test-case-generator', 'SKILL.md'),
+    path.join('templates', 'opencode', 'commands', 'acceptance', 'auto.md'),
+    path.join('templates', 'opencode', 'commands', 'acceptance', 'auto-fresh.md'),
     path.join('templates', 'grok', 'agents', 'grok-qa.md'),
     path.join('templates', 'grok', 'skills', 'grok-qa-acceptance', 'SKILL.md'),
     path.join('templates', 'grok', 'skills', 'grok-qa-acceptance', 'references', 'state-machine.md'),
@@ -137,6 +141,7 @@ function detectEnvironment(targetDir) {
   const hasOpenCodeAcceptance =
     pathExists(path.join(targetDir, '.opencode', 'agents', 'acceptance-ui.md')) ||
     pathExists(path.join(targetDir, '.opencode', 'agents', 'acceptance-agent.md'));
+  const hasOpenCodeApi = pathExists(path.join(targetDir, '.opencode', 'agents', 'acceptance-api.md'));
   const hasInstallSkill = pathExists(
     path.join(targetDir, '.agents', 'skills', 'install-acceptance-agents', 'SKILL.md'),
   );
@@ -189,9 +194,15 @@ function detectEnvironment(targetDir) {
         gaps.push(`missing OpenCode agent ${name}`);
       }
     }
+    if (!hasOpenCodeApi) {
+      gaps.push('OpenCode acceptance missing acceptance-api.md (upgrade to multi-model + API stage)');
+    }
   }
-  if (hasTrellis && !hasAcceptanceDefaults && (hasProjectGrokAgent || hasUserGrokAgent)) {
-    gaps.push('Trellis project without .trellis/acceptance.defaults.md (optional but recommended for Grok)');
+  if (!hasTrellis) {
+    gaps.push('No .trellis/ directory — this package expects Trellis projects');
+  }
+  if (hasTrellis && !hasAcceptanceDefaults && (hasProjectGrokAgent || hasUserGrokAgent || hasOpenCodeAcceptance)) {
+    gaps.push('Trellis project without .trellis/acceptance.defaults.md (recommended for env/url defaults)');
   }
 
   const choices = [
@@ -233,9 +244,11 @@ function detectEnvironment(targetDir) {
       grokProjectAgent: hasProjectGrokAgent,
       grokProjectSkill: hasProjectGrokSkill,
       openCodeAcceptance: hasOpenCodeAcceptance,
+      openCodeApi: hasOpenCodeApi,
       projectOpenCodeDir: hasProjectOpenCode,
       installSkill: hasInstallSkill,
       acceptanceDefaults: hasAcceptanceDefaults,
+      trellis: hasTrellis,
     },
     gaps,
     templateHealth,
@@ -455,7 +468,7 @@ function installOpenCodeRuntime(ctx) {
   const targetSkillsDir = path.join(targetDir, '.opencode', 'skills');
   const agentsMdPath = path.join(targetDir, 'AGENTS.md');
 
-  log(`installing OpenCode runtime into ${targetDir}`);
+  log(`installing OpenCode multi-model Trellis acceptance into ${targetDir}`);
   ensureDir(targetAgentsDir, dryRun);
 
   for (const name of fs.readdirSync(templateOpenCodeAgentsDir)) {
@@ -475,19 +488,35 @@ function installOpenCodeRuntime(ctx) {
     log('OpenCode skills skipped by --no-skills');
   }
 
+  // Slash commands: /acceptance/*
+  if (pathExists(templateOpenCodeCommandsDir)) {
+    copyTree(
+      templateOpenCodeCommandsDir,
+      path.join(targetDir, '.opencode', 'commands'),
+      targetDir,
+      force,
+      dryRun,
+    );
+  }
+
   if (updateAgentsMd) {
     updateManagedBlock(
       agentsMdPath,
       '<!-- opencode-acceptance-agents:start -->',
       '<!-- opencode-acceptance-agents:end -->',
-      `# OpenCode Acceptance Agents
+      `# OpenCode Acceptance Agents (Trellis multi-model)
 
-When the user asks to generate acceptance cases, prefer the \`acceptance-cases\` agent.
-When generating cases, default to UI-first / Midscene-ready cases and avoid unrelated backend compile, source inspection, configuration, or database-internal cases unless explicitly requested.
-When the user asks to execute UI/Midscene acceptance, prefer the \`acceptance-ui\` agent.
-When the user asks to review an acceptance report, prefer the \`acceptance-review\` agent.
-When the project has \`.trellis/\`, read Trellis task artifacts first; otherwise write acceptance artifacts under \`acceptance-artifacts/\`.
-Do not mix OpenCode acceptance runs with Grok \`grok-qa\` evidence prefixes in one run.
+OpenCode path uses **different models per stage** (product feature):
+- \`acceptance-cases\` → DeepSeek (\`opencode-go/deepseek-v4-pro\`)
+- \`acceptance-ui\` → Qwen multimodal (\`opencode-go/qwen3.6-plus\`)
+- \`acceptance-api\` → DeepSeek (\`opencode-go/deepseek-v4-pro\`)
+- \`acceptance-review\` → GPT (\`openai/gpt-5.5\`)
+- \`acceptance-agent\` orchestrates full flow: cases → ui → api → review → gate
+
+This package expects **Trellis** projects (\`.trellis/tasks/<task>\`).
+Read prd/design/implement; optional \`.trellis/acceptance.defaults.md\` for URLs.
+Natural language or \`/acceptance/auto\` / \`/acceptance/auto-fresh\`.
+Do not mix with Grok \`grok-qa\` evidence prefixes in one run.
 If the user asks to install or reinstall acceptance agents, prefer skill \`install-acceptance-agents\` (detect → choices → install).`,
       targetDir,
       dryRun,
@@ -496,8 +525,18 @@ If the user asks to install or reinstall acceptance agents, prefer skill \`insta
     log('AGENTS.md OpenCode block skipped by --no-agents-md');
   }
 
+  // Trellis defaults stub also useful for OpenCode env precheck
+  if (pathExists(path.join(targetDir, '.trellis'))) {
+    maybeWriteAcceptanceDefaultsStub({
+      targetDir,
+      force,
+      dryRun,
+      writeDefaultsStub: true,
+    });
+  }
+
   showModelHint();
-  log('OpenCode runtime done. Restart OpenCode to load new agents.');
+  log('OpenCode runtime done. Restart OpenCode. Prefer Task dispatch so each stage keeps its model.');
 }
 
 function installGrokInto(baseDir, agentsSub, skillsSub, label, ctx) {
@@ -624,6 +663,14 @@ function verifyInstall(targetDir, runtime, grokScope, dryRun) {
     check(
       'opencode-skill:acceptance-agents',
       path.join(targetDir, '.opencode', 'skills', 'acceptance-agents', 'SKILL.md'),
+    );
+    check(
+      'opencode-skill:test-case-generator',
+      path.join(targetDir, '.opencode', 'skills', 'test-case-generator', 'SKILL.md'),
+    );
+    check(
+      'opencode-cmd:auto',
+      path.join(targetDir, '.opencode', 'commands', 'acceptance', 'auto.md'),
     );
   }
 

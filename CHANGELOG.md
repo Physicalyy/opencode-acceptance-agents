@@ -1,29 +1,36 @@
 # Changelog
 
+## 0.4.0
+
+### OpenCode (from HEMS Trellis multi-model practice)
+
+- **Trellis-only** product assumption for acceptance agents
+- Multi-model stage matrix kept as OpenCode feature:
+  - cases → DeepSeek
+  - ui → Qwen multimodal
+  - **api (new)** → DeepSeek narrow smoke
+  - review → GPT + runner compliance + soft gate
+- `acceptance-agent` state machine: cases → ui → api → review → gate; fresh mode
+- Env precheck + Midscene-required for midscene runner (no Playwright-only pass)
+- Slash commands: `/acceptance/auto`, `auto-fresh`, `cases`, `ui`, `api`, `review`
+- Skill routing aligned with HEMS natural-language + fresh triggers
+- Installer copies commands; verify checks api agent + commands + test-case-generator
+- Detect gaps for missing `acceptance-api` and missing `.trellis/`
+
+### Other
+
+- `acceptance.defaults.md` stub also on OpenCode install into Trellis repos
+- Docs emphasize multi-model OpenCode vs single-agent Grok
+
 ## 0.3.0
 
-### Added
-
-- Installer `--detect` gaps, `packageVersion`, `installCommands`, template health
-- Installer `--yes` / `-y` installs recommended runtime non-interactively
-- Installer `--verify` post-install file checks; standalone verify mode
-- Installer `--selfcheck` validates package templates
-- TTY without `--runtime` auto-enters interactive mode
-- Project skill `install-acceptance-agents` installed with every runtime
-- Optional `.trellis/acceptance.defaults.md` stub when installing Grok into Trellis projects
-- OpenCode skill isolation notes vs Grok path
-- `CHANGELOG.md`, `package.files`, repository metadata
-
-### Changed
-
-- AI install playbook: detect → choices → install with `--verify --json`
-- Version bump for grok-qa templates to `1.1.0-trellis-global`
+- Installer `--detect` gaps, `--yes`, `--verify`, `--selfcheck`, TTY interactive
+- Project skill `install-acceptance-agents`
+- Grok templates + dual runtime
 
 ## 0.2.0
 
-- Grok runtime templates (`grok-qa` + `grok-qa-acceptance`)
-- Installer `--runtime opencode|grok|all`, `--detect`, `--interactive`
-- Dual-path docs (README / AI-INSTALL / AGENTS)
+- Grok runtime templates; `--runtime opencode|grok|all`
 
 ## 0.1.0
 

@@ -1,145 +1,116 @@
 ---
 name: acceptance-agents
-description: Use when the user asks to generate acceptance test cases, UI-first test cases, QA cases, run UI/Midscene acceptance, rerun pending/failed UI cases, or review an acceptance report. Routes work to OpenCode agents acceptance-cases, acceptance-ui, and acceptance-review.
+description: >
+  Trellis multi-model OpenCode acceptance. Use when the user asks to generate acceptance
+  cases, run UI/Midscene, run API smoke, review reports, start testing, rerun from scratch,
+  ignore old cases, or finish acceptance on a Trellis task. Routes to acceptance-cases
+  (DeepSeek), acceptance-ui (Qwen), acceptance-api (DeepSeek), acceptance-review (GPT),
+  or acceptance-agent for full orchestration. Do not hand-write tests in the main session.
 ---
 
-# Acceptance Agents
+# Acceptance Agents (Trellis / multi-model OpenCode)
 
-Use this skill to route acceptance-testing requests to the right OpenCode agent.
+Route Trellis acceptance requests to **stage agents with different models**. That multi-model split is the OpenCode product feature.
 
-## Intent Routing
+## Model matrix (do not collapse)
+
+| Intent | Agent | Default model |
+|--------|--------|---------------|
+| Generate cases | `acceptance-cases` | `opencode-go/deepseek-v4-pro` |
+| Execute UI / Midscene | `acceptance-ui` | `opencode-go/qwen3.6-plus` |
+| API smoke | `acceptance-api` | `opencode-go/deepseek-v4-pro` |
+| Review report | `acceptance-review` | `openai/gpt-5.5` |
+| Full / auto / fresh | `acceptance-agent` | session model orchestrates stages |
+
+If models are missing, tell the user to run `opencode models` and edit agent frontmatter — still keep stages separate.
+
+## Trellis only
+
+All target projects use **Trellis**:
+
+1. Resolve task: `Active task` → `.trellis/tasks/<slug>/` → `python ./.trellis/scripts/task.py current --source`
+2. Read prd / design / implement under the task
+3. Write outputs under the **task directory** only
+4. Optional env: `.trellis/acceptance.defaults.md`
+
+If `.trellis/` is missing → blocked (not a non-Trellis fallback product).
+
+## Intent routing
 
 ### Generate or refresh cases
 
-Trigger when the user says any of:
+Triggers: 生成验收用例 / 生成测试用例 / UI 验收用例 / QA 用例 / test cases / acceptance cases / 只生成不执行
 
-- 生成验收用例 / 生成测试用例 / UI 验收用例 / QA 用例 / 测试用例
-- test cases / acceptance cases / generate cases
-- 只生成，不执行 / 不参考旧 test-run / 不参考旧用例
+→ **`acceptance-cases`** (DeepSeek)
 
-Route to agent:
+- UI-first Midscene-ready cases; all `pending`; no execution
 
-```text
-acceptance-cases
-```
+### Execute UI / Midscene
 
-Default behavior:
+Triggers: 执行 UI 验收 / 跑 Midscene / UI 自动化 / 执行 P0/P1 UI / 开始测试 / 执行验收测试 / run acceptance
 
-- Generate UI-first / Midscene-ready cases.
-- Do not execute cases.
-- Set all new cases to `pending`.
-- Do not generate unrelated Maven compile, source inspection, configuration, database-internal, or implementation-detail cases unless the user explicitly asks or the case is strictly necessary to prove a P0/P1 user-visible requirement.
+→ Prefer full orchestrator **`acceptance-agent`** when the user wants a full run; otherwise **`acceptance-ui`** (Qwen) for UI-only.
 
-### Execute UI or Midscene acceptance
+### API smoke
 
-Trigger when the user says any of:
+Triggers: 跑 API / 接口验收 / API smoke
 
-- 执行 UI 验收 / 跑 Midscene / UI 自动化验收 / 执行 P0/P1 UI 用例 / 开始测试 / 执行验收测试
-- rerun failed UI cases / rerun pending UI cases / run acceptance
+→ **`acceptance-api`** (DeepSeek)
 
-Route to agent:
+### Review
 
-```text
-acceptance-ui
-```
+Triggers: 复核报告 / 审查测试报告 / 检查覆盖度 / review acceptance report
 
-Default behavior:
+→ **`acceptance-review`** (GPT)
 
-- Execute selected UI/Midscene cases.
-- Collect screenshot, DOM, route, visible-text, console, or network evidence relevant to UI behavior.
-- Update only `status`, `evidence`, and `notes` unless the case definition is demonstrably wrong.
-- Require explicit authorization for `data_mutation` or `destructive` cases.
+### Complete flow / auto
 
-### Review acceptance report
+Triggers: 做完整验收 / 完整验收流程 / finish acceptance / 开始测试任务 (broad)
 
-Trigger when the user says any of:
+→ **`acceptance-agent`**
 
-- 复核验收报告 / 审查测试报告 / 检查覆盖度 / 看看验收是否充分
-- review acceptance report / review report
-
-Route to agent:
+Stages:
 
 ```text
-acceptance-review
+cases (deepseek) -> ui (qwen) -> api (deepseek) -> review (gpt) -> gate
 ```
-
-Default behavior:
-
-- Review coverage, evidence sufficiency, hidden pending/failed cases, manual-case evidence, and false-positive risk.
-- Do not execute cases.
-- Do not invent results or evidence.
-
-### Complete acceptance flow
-
-Trigger when the user asks for a broad or full flow, such as:
-
-- 做完整验收 / 跑完整 acceptance / finish acceptance gate / 完整验收流程
-
-Route through:
-
-```text
-acceptance-agent
-```
-
-The main session may split the work into stages and dispatch `acceptance-cases`, `acceptance-ui`, then `acceptance-review` as needed.
 
 ### Fresh / 从头开始
 
-Trigger when the user says any of:
+Triggers: 从头开始 / 重新生成 / fresh / clean / 忽略旧用例 / ignore old cases / regenerate
 
-- 从头开始 / 重新生成 / 忽略旧用例 / 忽略旧 test-cases
-- fresh / clean / ignore old cases / regenerate / 清空重来
-
-Behavior:
-
-Fresh mode means restarting from cases generation even if `test-cases.jsonl` or previous reports already exist. The stage chain is:
+→ **`acceptance-agent`** with Fresh mode:
 
 ```text
-cases → ui → review
+cases -> ui -> api -> review -> gate
 ```
 
-1. `acceptance-cases`: regenerate cases from scratch, overwrite existing artifacts.
-2. `acceptance-ui`: execute all pending P0/P1 UI cases on the fresh set.
-3. `acceptance-review`: review the fresh report for coverage and evidence quality.
+Cases first even if old artifacts exist.
 
-## Project Modes
+## Main session rules
 
-### Trellis projects
+- Do **not** generate cases, run Midscene, or mark pass/fail in the main session.
+- Dispatch stage agents (Task / subagent) so each keeps its model frontmatter.
+- Do not mix Grok path: no `grok-qa-routing-*`, no `dispatchMode=grok-agent`.
 
-If `.trellis/` exists:
+## Isolation from Grok
 
-1. Prefer the active task from the dispatch prompt or `python ./.trellis/scripts/task.py current --source`.
-2. Read task artifacts in order: `prd.md`, `design.md` if present, `implement.md` if present.
-3. Write acceptance outputs under the task directory.
+| | OpenCode (this) | Grok |
+|--|-----------------|------|
+| Entry | `acceptance-*` multi-model | `grok-qa` single agent |
+| Report | `test-run-*-acceptance.md` | `test-run-*-grok-acceptance.md` |
+| Evidence prefix | OpenCode task evidence | `grok-qa-routing-*` |
 
-### Non-Trellis projects
+If user asks for Grok acceptance, tell them to use Grok / `grok-qa`.
 
-If `.trellis/` does not exist:
+## Install / reinstall
 
-1. Use the user-provided requirement document, issue, screenshot, or feature description.
-2. If no source is specified, ask for the smallest missing requirement source.
-3. Write outputs under `acceptance-artifacts/`.
+Use skill `install-acceptance-agents` or package installer: detect → choices → install. No copy-paste prompt dumps.
 
-## Isolation From Grok Path
+## Safety
 
-This skill is **OpenCode-only**.
-
-- Do **not** call or emulate Grok agent `grok-qa` from OpenCode.
-- Do **not** write `dispatchMode=grok-agent` or `evidence/grok-qa-routing-*.jsonl`.
-- Prefer OpenCode reports such as `test-run-YYYYMMDD-acceptance.md` and OpenCode routing evidence prefixes.
-- If the user asks for Grok acceptance, tell them to use Grok / agent `grok-qa` instead of mixing paths.
-
-## Install / reinstall agents
-
-When the user asks to **install or reinstall** acceptance agents:
-
-1. Prefer skill `install-acceptance-agents` if present in the project.
-2. Or run the package installer: detect → present choices (`grok` / `opencode` / `all`) → install.
-3. Do **not** dump a long copy-paste prompt for the user.
-
-## Safety Rules
-
-- Do not write secrets, API keys, tokens, or environment files.
-- Do not modify business code unless the user explicitly changes the request from acceptance to fixing.
-- Do not mark cases passed without concrete evidence.
-- Keep UI-first case generation focused on user-visible behavior.
+- No secrets in artifacts
+- No product source edits unless user leaves acceptance for fixing
+- No service start unless user asks
+- No pass without evidence
+- Mutation/destructive need explicit authorization

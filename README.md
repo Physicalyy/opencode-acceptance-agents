@@ -1,109 +1,61 @@
 # opencode-acceptance-agents
 
-Acceptance agents for **two runtimes**:
+Acceptance agents for **Trellis** projects, two runtimes:
 
-| Runtime | Entry | Role |
-|---------|-------|------|
-| **OpenCode** | `acceptance-*` agents | Multi-agent, multi-model UI-first acceptance |
-| **Grok** | `grok-qa` agent | Single-agent full loop: cases → ui → api → review → gate |
+| Runtime | Feature | Flow |
+|---------|---------|------|
+| **OpenCode** | **Multi-model stages** (DeepSeek / Qwen / GPT) | cases → ui → api → review → gate |
+| **Grok** | Single agent `grok-qa` | cases → ui → api → review → gate |
 
-中文文档见 [README.zh-CN.md](./README.zh-CN.md)。
+中文文档：[README.zh-CN.md](./README.zh-CN.md)
 
-## OpenCode capabilities
+## OpenCode multi-model matrix
 
-| Stage | Agent | Default Model | Role |
-|---|---|---|---|
-| Generate UI cases | `acceptance-cases` | `opencode-go/deepseek-v4-pro` | 5-step workflow to generate `test-cases.jsonl` / `test-cases.md` |
-| Execute UI/Midscene | `acceptance-ui` | `opencode-go/qwen3.6-plus` | Midscene execution, evidence, Chinese reports |
-| Review report | `acceptance-review` | `opencode/gpt-5.5` | Coverage, evidence, false-positive risk |
-| Entry point | `acceptance-agent` | session model | Stage routing |
+| Stage | Agent | Default model | Role |
+|-------|--------|---------------|------|
+| cases | `acceptance-cases` | `opencode-go/deepseek-v4-pro` | UI-first case generation |
+| ui | `acceptance-ui` | `opencode-go/qwen3.6-plus` | Midscene + multimodal |
+| api | `acceptance-api` | `opencode-go/deepseek-v4-pro` | Narrow API smoke |
+| review | `acceptance-review` | `openai/gpt-5.5` | Coverage + runner compliance |
+| orchestrator | `acceptance-agent` | session | Routes stages; keeps per-stage models |
 
-### OpenCode skills
+Do **not** collapse stages into one model — that is the OpenCode product identity.
 
-| Skill | Role |
-|-------|------|
-| `acceptance-agents` | Auto-routing from Chinese/English triggers, fresh mode |
-| `test-case-generator` | Standalone 5-step case generator |
+### Commands (after install)
 
-## Grok capabilities
+- `/acceptance/auto` — full / continue
+- `/acceptance/auto-fresh` — ignore old cases, full chain
+- `/acceptance/cases` | `ui` | `api` | `review`
+
+### Skills
+
+- `acceptance-agents` — NL routing to stage agents
+- `test-case-generator` — interactive 5-step (prefer `acceptance-cases` for multi-model acceptance)
+
+## Grok
 
 | Item | Value |
 |------|-------|
 | Agent | `grok-qa` |
 | Skill | `grok-qa-acceptance` |
-| Flow | `cases → ui → api(narrow) → review → gate` |
-| Evidence | `evidence/grok-qa-routing-*.jsonl`, `dispatchMode=grok-agent` |
-| Report | `test-run-*-grok-acceptance.md` |
+| Evidence | `grok-qa-routing-*.jsonl`, `dispatchMode=grok-agent` |
 
-OpenCode and Grok paths **must not** be mixed in one run (different evidence prefixes and orchestrators).
-
-## Quick install
-
-### OpenCode only (default)
+## Install
 
 ```bash
-npx github:Physicalyy/opencode-acceptance-agents
+# OpenCode multi-model (Trellis)
+npx github:Physicalyy/opencode-acceptance-agents --runtime opencode --force --verify
+
+# Grok
+npx github:Physicalyy/opencode-acceptance-agents --runtime grok --force --verify
+
+# Both
+npx github:Physicalyy/opencode-acceptance-agents --runtime all --force --verify
+
+# AI: detect → user chooses → install
+npx github:Physicalyy/opencode-acceptance-agents --detect --target <project>
 ```
 
-### Grok only
+Expects **`.trellis/`**. Optional: `.trellis/acceptance.defaults.md` for frontend/api URLs.
 
-```bash
-npx github:Physicalyy/opencode-acceptance-agents --runtime grok
-```
-
-Installs:
-
-- User-global: `~/.grok/agents/grok-qa.md` + `~/.grok/skills/grok-qa-acceptance/`
-- Project: `<target>/.grok/agents/grok-qa.md` + `<target>/.agents/skills/grok-qa-acceptance/`
-- Managed block in `<target>/AGENTS.md` (Grok section)
-
-### Both runtimes
-
-```bash
-npx github:Physicalyy/opencode-acceptance-agents --runtime all --force
-```
-
-### Options
-
-| Flag | Meaning |
-|------|---------|
-| `--detect` | JSON environment report for AI (choices + recommendation) |
-| `--interactive` / `-i` | Human menu after detect |
-| `--yes` / `-y` | Install `recommendedRuntime` without a menu |
-| `--runtime opencode\|grok\|all` | Explicit path (TTY with no flag → interactive) |
-| `--grok-scope user\|project\|both` | Grok scope (default `both`) |
-| `--verify` | Post-install file checks |
-| `--selfcheck` | Validate package templates |
-| `--target <dir>` | Project root (default cwd) |
-| `--force` | Overwrite existing files |
-| `--dry-run` | Print only |
-| `--json` | Emit result JSON |
-| `--no-agents-md` | Skip AGENTS.md managed blocks |
-| `--no-skills` | Skip skill packages |
-
-## Will AI auto-recognize after install?
-
-**Yes, if files land where the host product scans them.**
-
-| Host | After install | Auto behavior |
-|------|---------------|---------------|
-| **Grok** | Agent under `~/.grok/agents/` and/or project `.grok/agents/`; skill under `~/.grok/skills/` and/or `.agents/skills/` | Discovers `grok-qa` and `grok-qa-acceptance`. New session or `/config-agents` to select agent. Natural-language triggers in agent/skill `description` also route acceptance intents. |
-| **OpenCode** | Agents/skills under project `.opencode/` | Discovers `acceptance-*`; restart OpenCode. Skill `acceptance-agents` routes Chinese/English triggers. |
-
-AI installers should run the `npx` command (or `node scripts/install.mjs`) with the correct `--runtime`, not hand-copy partial files.
-
-## AI install (detect → choices → install)
-
-Tell the AI: **“Install acceptance agents”**. It should:
-
-1. Run `node scripts/install.mjs --detect --target <project-root>` (JSON)
-2. Present `choices` (`grok` / `opencode` / `all`) with the recommended option marked
-3. After you pick, run `node scripts/install.mjs --runtime <id> --target <project-root> [--force]`
-
-**Do not** dump a copy-paste “prompt for another AI”. Playbook: [AI-INSTALL.md](./AI-INSTALL.md).
-
-Human interactive:
-
-```bash
-node scripts/install.mjs --interactive --target <project-root>
-```
+Playbook for AI installers: [AI-INSTALL.md](./AI-INSTALL.md). Changelog: [CHANGELOG.md](./CHANGELOG.md).

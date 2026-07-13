@@ -82,18 +82,14 @@ description: >-
 - 输出功能覆盖矩阵、缺口分析、主动放弃声明。
 - 最后一行总结"能发现/不能发现什么类 bug"。
 
-## 项目模式
+## 项目模式（Trellis 优先）
 
-### Trellis 项目
+本开源验收产品面向 **Trellis 工程**：
 
-如果项目存在 `.trellis/`：
-1. 优先使用 dispatch prompt 中的 `Active task`。
+1. 优先使用 dispatch prompt 中的 `Active task`，或 `python ./.trellis/scripts/task.py current --source`。
 2. 读取任务材料：`prd.md`、`design.md`（如有）、`implement.md`（如有）。
-3. 输出到任务目录下。
+3. 输出到 `.trellis/tasks/<task>/` 下的 `test-cases.jsonl` / `test-cases.md`。
 
-### 非 Trellis 项目
+若用户明确要求「交互式 5 步拆解」且未要求走验收 agent，可用本 skill；若用户要 **OpenCode 多模型验收用例生成**，应路由到 `acceptance-cases`（DeepSeek），不要在主会话手写用例。
 
-如果 `.trellis/` 不存在：
-1. 使用用户提供的需求文档、issue、截图、页面描述作为输入。
-2. 如果没有输入源，询问最小的缺失需求信息。
-3. 输出到 `acceptance-artifacts/test-cases.jsonl` 和 `acceptance-artifacts/test-cases.md`。
+若工程没有 `.trellis/`：说明本产品默认假设 Trellis；仅当用户坚持时，才可输出到 `acceptance-artifacts/` 并注明非标准模式。
