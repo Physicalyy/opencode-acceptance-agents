@@ -68,9 +68,10 @@ node scripts/install.mjs --interactive --target <project-root>
 ### Step 4 — 验收结果
 
 - 读 JSON `verification.ok`  
-- Grok：新会话或 `/config-agents` → `grok-qa`  
+- Grok：新会话或 `/config-agents` → `grok-qa`；skill 应含 `scripts/check_coverage_gate.py` 等流水线脚本  
 - OpenCode：重启 OpenCode  
 - Trellis + Grok：检查/填写 `.trellis/acceptance.defaults.md`  
+- Grok 全流程主交付：`test-run-*-grok-full-acceptance.html`（另有 md 叙事）
 
 ## 意图映射
 

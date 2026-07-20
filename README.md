@@ -5,7 +5,7 @@
 [中文文档](./README.zh-CN.md) · [AI install playbook](./AI-INSTALL.md) · [Changelog](./CHANGELOG.md) · [License: MIT](./LICENSE)
 
 <p align="left">
-  <img alt="version" src="https://img.shields.io/badge/version-0.4.0-blue?style=flat-square" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.0-blue?style=flat-square" />
   <img alt="license" src="https://img.shields.io/badge/license-MIT-green?style=flat-square" />
   <img alt="node" src="https://img.shields.io/badge/node-%3E%3D18-brightgreen?style=flat-square" />
   <img alt="trellis" src="https://img.shields.io/badge/project-Trellis-informational?style=flat-square" />
@@ -42,7 +42,8 @@ This package installs **acceptance-only agents** that:
               └───────────────────────┬───────────────────────┘
                                       ▼
                     cases → ui → api → review → gate
-                    test-cases.jsonl · test-run-*.md · evidence/
+                    (+ Grok: coverage-gate · full HTML)
+                    test-cases.jsonl · test-run-*.md/.html · evidence/
 ```
 
 ---
@@ -54,9 +55,9 @@ This package installs **acceptance-only agents** that:
 | **Identity** | Multi-model staged acceptance | One agent full loop |
 | **Entry** | `acceptance-agent` + stage agents | `grok-qa` |
 | **Models** | DeepSeek → Qwen → DeepSeek → GPT | Current Grok model |
-| **Flow** | cases → ui → api → review → gate | same stages, one agent |
-| **Report** | `test-run-*-acceptance.md` | `test-run-*-grok-acceptance.md` |
-| **Evidence** | Task `evidence/` (OpenCode prefixes) | `evidence/grok-qa-routing-*.jsonl` |
+| **Flow** | cases → ui → api → review → gate | coverage-gate → cases → ui → api → review → gate → full HTML |
+| **Report** | `test-run-*-acceptance.md` | **Primary** `*-grok-full-acceptance.html` + md narrative |
+| **Evidence** | Task `evidence/` (OpenCode prefixes) | `evidence/grok-qa-routing-*.jsonl` + `midscene-run-grok-*` |
 | **Install** | Project `.opencode/` | `~/.grok/` + project `.grok/` / `.agents/` |
 
 > **Do not merge paths.** If you use OpenCode, stay on OpenCode evidence. If you use Grok, stay on `grok-qa` prefixes.
@@ -106,10 +107,12 @@ Phrases like *开始测试任务*, *从头开始*, *生成验收用例*, *执行
 
 | Piece | Value |
 |-------|--------|
-| Agent | `grok-qa` |
-| Skill | `grok-qa-acceptance` |
+| Agent | `grok-qa` (`1.2.0`) |
+| Skill | `grok-qa-acceptance` (+ `scripts/` pipeline helpers) |
+| Flow | coverage-gate → cases → ui → api → review → gate → full HTML |
 | Dispatch | `dispatchMode=grok-agent` |
 | Routing evidence | `evidence/grok-qa-routing-YYYYMMDD-HHmmss.jsonl` |
+| Primary report | `test-run-*-grok-full-acceptance.html` |
 | After install | New Grok session or `/config-agents` → select **`grok-qa`** |
 
 ---
@@ -187,7 +190,7 @@ Restart **OpenCode** after OpenCode install. Open a **new Grok session** (or `/c
 | Task root | `.trellis/tasks/<task-slug>/` |
 | Inputs | `prd.md`, optional `design.md` / `implement.md` |
 | Cases | `test-cases.jsonl` + `test-cases.md` |
-| Report | `test-run-YYYYMMDD-acceptance.md` (OpenCode) or `*-grok-acceptance.md` (Grok) |
+| Report | OpenCode: `test-run-*-acceptance.md`; Grok: `*-grok-full-acceptance.html` + md narrative |
 | Env defaults | `.trellis/acceptance.defaults.md` (`frontend_url`, `api_base`, login mode) |
 | Soft gate | `python ./.trellis/scripts/project/check_test_cases.py .trellis/tasks/<task>` |
 

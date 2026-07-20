@@ -114,6 +114,31 @@ function listTemplateHealth() {
     path.join('templates', 'grok', 'skills', 'grok-qa-acceptance', 'SKILL.md'),
     path.join('templates', 'grok', 'skills', 'grok-qa-acceptance', 'references', 'state-machine.md'),
     path.join('templates', 'grok', 'skills', 'grok-qa-acceptance', 'references', 'project-defaults.md'),
+    path.join('templates', 'grok', 'skills', 'grok-qa-acceptance', 'references', 'failure-class.md'),
+    path.join(
+      'templates',
+      'grok',
+      'skills',
+      'grok-qa-acceptance',
+      'scripts',
+      'check_coverage_gate.py',
+    ),
+    path.join(
+      'templates',
+      'grok',
+      'skills',
+      'grok-qa-acceptance',
+      'scripts',
+      'run_midscene_pipeline.py',
+    ),
+    path.join(
+      'templates',
+      'grok',
+      'skills',
+      'grok-qa-acceptance',
+      'scripts',
+      'generate_full_report_html.py',
+    ),
     path.join('templates', 'ai', 'install-skill', 'SKILL.md'),
   ];
   const missing = required.filter((rel) => !pathExists(path.join(rootDir, rel)));
@@ -622,8 +647,9 @@ function installGrokRuntime(ctx) {
       `# Grok QA Acceptance Agent
 
 When the user asks to start testing, run acceptance, generate UI-first cases, run Midscene/UI verification, narrow API smoke, review acceptance reports, or rerun from scratch on a Trellis task, prefer agent \`grok-qa\`.
-Full flow: cases -> ui -> api(narrow) -> review -> gate.
-Use skill \`grok-qa-acceptance\` contracts. Write \`dispatchMode=grok-agent\` and evidence \`evidence/grok-qa-routing-*.jsonl\`; prefer report \`test-run-*-grok-acceptance.md\`.
+Full flow: coverage-gate -> cases -> ui -> api(narrow) -> review -> gate -> full HTML.
+Use skill \`grok-qa-acceptance\` contracts and its \`scripts/\` helpers. Write \`dispatchMode=grok-agent\` and evidence \`evidence/grok-qa-routing-*.jsonl\`.
+Primary report: \`test-run-*-grok-full-acceptance.html\`; narrative: \`test-run-*-grok-acceptance.md\`.
 When the project has \`.trellis/\`, read task artifacts and optional \`.trellis/acceptance.defaults.md\` first.
 Do not call OpenCode \`/local-acceptance/*\` or mix OpenCode routing evidence filenames in a Grok run.
 If the user asks to install or reinstall acceptance agents, prefer skill \`install-acceptance-agents\` (detect → choices → install).
@@ -680,12 +706,33 @@ function verifyInstall(targetDir, runtime, grokScope, dryRun) {
       'grok-user-skill',
       path.join(userGrokDir, 'skills', 'grok-qa-acceptance', 'SKILL.md'),
     );
+    check(
+      'grok-user-skill-script',
+      path.join(
+        userGrokDir,
+        'skills',
+        'grok-qa-acceptance',
+        'scripts',
+        'check_coverage_gate.py',
+      ),
+    );
   }
   if (grokProject) {
     check('grok-project-agent', path.join(targetDir, '.grok', 'agents', 'grok-qa.md'));
     check(
       'grok-project-skill',
       path.join(targetDir, '.agents', 'skills', 'grok-qa-acceptance', 'SKILL.md'),
+    );
+    check(
+      'grok-project-skill-script',
+      path.join(
+        targetDir,
+        '.agents',
+        'skills',
+        'grok-qa-acceptance',
+        'scripts',
+        'check_coverage_gate.py',
+      ),
     );
   }
 

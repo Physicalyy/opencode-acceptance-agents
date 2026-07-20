@@ -28,7 +28,8 @@ One JSON object per line:
   "expected": ["result list visible", "hit fragment contains highlight"],
   "status": "pending",
   "evidence": "",
-  "notes": ""
+  "notes": "",
+  "failure_class": ""
 }
 ```
 
@@ -53,8 +54,11 @@ Use routes/URLs from task docs or `.trellis/acceptance.defaults.md` — do not i
 | `status` | see below |
 | `evidence` | path/summary string; empty when pending |
 | `notes` | optional caveats, drift, timing sensitivity |
+| `failure_class` | optional after execution: `product` \| `harness` \| `env` \| `data` \| `flake` (see `failure-class.md`) |
 
 Legacy fields from older generators are acceptable on read. New Grok-generated cases should include the full schema above.
+
+Update status only via `scripts/update_case_status.py` (or equivalent careful JSONL rewrite). **Do not** concatenate JSON objects with shell string `\n` joins.
 
 ## Status Enum
 

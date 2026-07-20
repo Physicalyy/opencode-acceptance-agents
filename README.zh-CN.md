@@ -8,7 +8,7 @@
 [English](./README.md) · [AI 安装说明](./AI-INSTALL.md) · [更新日志](./CHANGELOG.md) · [MIT License](./LICENSE)
 
 <p align="left">
-  <img alt="version" src="https://img.shields.io/badge/version-0.4.0-blue?style=flat-square" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.0-blue?style=flat-square" />
   <img alt="license" src="https://img.shields.io/badge/license-MIT-green?style=flat-square" />
   <img alt="node" src="https://img.shields.io/badge/node-%3E%3D18-brightgreen?style=flat-square" />
   <img alt="trellis" src="https://img.shields.io/badge/工程-Trellis-informational?style=flat-square" />
@@ -45,7 +45,8 @@ Trellis 任务验收容易出现：用例无证据、UI 未跑 Midscene、报告
               └───────────────────────┬───────────────────────┘
                                       ▼
                     cases → ui → api → review → gate
-                    test-cases.jsonl · test-run-*.md · evidence/
+                    （Grok 另含 coverage-gate · full HTML）
+                    test-cases.jsonl · test-run-*.md/.html · evidence/
 ```
 
 ---
@@ -57,9 +58,9 @@ Trellis 任务验收容易出现：用例无证据、UI 未跑 Midscene、报告
 | **定位** | 多模型分阶段 | 单 agent 闭环 |
 | **入口** | `acceptance-agent` + 各 stage | `grok-qa` |
 | **模型** | DeepSeek → Qwen → DeepSeek → GPT | 当前 Grok 会话模型 |
-| **流程** | cases → ui → api → review → gate | 同左（单 agent 串行） |
-| **报告** | `test-run-*-acceptance.md` | `test-run-*-grok-acceptance.md` |
-| **证据** | 任务 `evidence/`（OpenCode 约定） | `evidence/grok-qa-routing-*.jsonl` |
+| **流程** | cases → ui → api → review → gate | coverage-gate → cases → ui → api → review → gate → full HTML |
+| **报告** | `test-run-*-acceptance.md` | **主交付** `*-grok-full-acceptance.html` + md 叙事 |
+| **证据** | 任务 `evidence/`（OpenCode 约定） | `evidence/grok-qa-routing-*.jsonl` + `midscene-run-grok-*` |
 | **安装位置** | 项目 `.opencode/` | `~/.grok/` + 项目 `.grok/` / `.agents/` |
 
 > **同一次验收不要混路径。** OpenCode 会话走 OpenCode；Grok 会话走 `grok-qa`。
@@ -110,10 +111,12 @@ Trellis 任务验收容易出现：用例无证据、UI 未跑 Midscene、报告
 
 | 项 | 值 |
 |----|-----|
-| Agent | `grok-qa` |
-| Skill | `grok-qa-acceptance` |
+| Agent | `grok-qa`（`1.2.0`） |
+| Skill | `grok-qa-acceptance`（含 `scripts/` 流水线） |
+| 流程 | coverage-gate → cases → ui → api → review → gate → full HTML |
 | Dispatch | `dispatchMode=grok-agent` |
 | 路由证据 | `evidence/grok-qa-routing-YYYYMMDD-HHmmss.jsonl` |
+| 主报告 | `test-run-*-grok-full-acceptance.html` |
 | 装完后 | 新开 Grok 会话，或 `/config-agents` 选 **`grok-qa`** |
 
 ---
@@ -191,7 +194,7 @@ OpenCode 装完请 **重启 OpenCode**；Grok 装完请 **新开会话** 或 `/c
 | 任务目录 | `.trellis/tasks/<task-slug>/` |
 | 输入 | `prd.md`，可选 `design.md` / `implement.md` |
 | 用例 | `test-cases.jsonl` + `test-cases.md` |
-| 报告 | OpenCode：`test-run-*-acceptance.md`；Grok：`*-grok-acceptance.md` |
+| 报告 | OpenCode：`test-run-*-acceptance.md`；Grok：`*-grok-full-acceptance.html` + md 叙事 |
 | 环境默认 | `.trellis/acceptance.defaults.md`（`frontend_url` / `api_base` / 登录方式） |
 | Soft gate | `python ./.trellis/scripts/project/check_test_cases.py .trellis/tasks/<task>` |
 

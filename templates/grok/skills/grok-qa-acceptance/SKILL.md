@@ -1,48 +1,31 @@
 ---
 name: grok-qa-acceptance
-version: 1.1.0-trellis-global
+version: 1.2.0-trellis-global
 package: opencode-acceptance-agents
-source: generalized from HEMS-git grok-qa-acceptance; shipped via templates/grok
-description: "Contract library and playbook for the Grok QA agent (grok-qa). Trellis frontend-oriented acceptance: UI-first cases, Midscene UI, narrow API smoke, review, and gate. Use when running or maintaining Grok-path acceptance. Prefer the grok-qa agent as entry identity."
+source: generalized from HEMS + 2026-07-17 pipeline practice; shipped via templates/grok
+description: "Contract library and playbook for the Grok QA agent (grok-qa). Trellis frontend-oriented acceptance: UI-first cases, coverage gate, Midscene pipeline, seed/cleanup, full HTML report, review, and gate."
 ---
 
 # Grok QA Acceptance (Contract Library)
 
 User-global skill package for Trellis projects (`~/.grok/skills/grok-qa-acceptance/`).
 
-A project may ship a **same-named full copy** under `.agents/skills/grok-qa-acceptance/` (project wins, full package replace — not merge). Do not replace the project package with a thin stub of the same name.
+A project may ship a **same-named full copy** under `.agents/skills/grok-qa-acceptance/` (project wins, full package replace — not merge).
 
 ## Preferred Entry
 
 | Layer | Path | Role |
 |-------|------|------|
 | **Agent (entry)** | `~/.grok/agents/grok-qa.md` or project `.grok/agents/grok-qa.md` | Session identity + orchestration |
-| **Skill (contracts)** | this package (or project same-name override) | Schema, precheck, Midscene limits, API evidence, report format |
+| **Skill (contracts)** | this package (or project same-name override) | Schema, precheck, Midscene, reports, scripts |
 
 ## Purpose
 
-Frontend-oriented **full** acceptance loop for Trellis tasks:
-
 ```text
-cases (UI-first) -> ui (Midscene core) -> api (narrow smoke) -> review -> gate
+coverage gate -> cases (if thin) -> ui (Midscene) -> api (narrow) -> review -> gate -> full HTML
 ```
 
-Solves **frontend test verification**, not backend-only QA. Backend-only tasks may skip UI when no UI cases exist (see `references/state-machine.md`).
-
-## Platform Boundary (summary)
-
-| Do | Do not |
-|----|--------|
-| Use Grok agent/skill path | Call OpenCode `opencode` / `/local-acceptance/*` as the orchestrator |
-| Write `evidence/grok-qa-routing-*.jsonl` | Reuse OpenCode routing evidence filenames |
-| Prefer `test-run-*-grok-acceptance.md` | Claim multi-model OpenCode routing succeeded |
-| Edit only `.trellis/tasks/<task>/**` acceptance artifacts | Edit product source to make tests green |
-
-Details: `references/platform-boundary.md`.
-
 ## Required References
-
-Read before any stage work:
 
 1. `references/platform-boundary.md`
 2. `references/project-defaults.md`
@@ -51,64 +34,104 @@ Read before any stage work:
 5. `references/risk-gate.md`
 6. `references/env-precheck.md`
 7. `references/midscene-limitations.md`
-8. `references/api-evidence.md`
-9. `references/report-format.md`
+8. `references/midscene-emcpc-patterns.md`
+9. `references/fixture-seed-cleanup.md`
+10. `references/evidence-run-layout.md`
+11. `references/failure-class.md`
+12. `references/api-evidence.md`
+13. `references/report-format.md`
+
+## Scripts (use these; do not shell-handcraft JSONL)
+
+| Script | Purpose |
+|--------|---------|
+| `scripts/check_coverage_gate.py` | PRD/UI theme coverage before UI exec |
+| `scripts/run_midscene_pipeline.py` | prepare run-id dir; finalize summary→jsonl→full HTML |
+| `scripts/update_case_status.py` | safe jsonl status/evidence/failure_class updates |
+| `scripts/check_test_cases.py` | P0/P1 gate when project checker missing |
+| `scripts/generate_full_report_html.py` | full-scope HTML from all jsonl cases |
+
+Windows examples:
+
+```bash
+python "%USERPROFILE%\.grok\skills\grok-qa-acceptance\scripts\check_coverage_gate.py" --task .trellis/tasks/<slug>
+python "%USERPROFILE%\.grok\skills\grok-qa-acceptance\scripts\run_midscene_pipeline.py" prepare --task .trellis/tasks/<slug>
+python "%USERPROFILE%\.grok\skills\grok-qa-acceptance\scripts\run_midscene_pipeline.py" finalize --task .trellis/tasks/<slug> --run-dir <evidence/midscene-run-grok-...>
+python "%USERPROFILE%\.grok\skills\grok-qa-acceptance\scripts\check_test_cases.py" .trellis/tasks/<slug>
+python "%USERPROFILE%\.grok\skills\grok-qa-acceptance\scripts\generate_full_report_html.py" .trellis/tasks/<slug>
+```
 
 ## Flow Summary
 
-### Fresh mode triggers
+### Fresh mode
 
-`从头开始` / `重新生成` / `fresh` / `clean` / `忽略旧用例` / `忽略旧 test-cases` / `ignore old cases` / `regenerate`
-
-→ always `cases -> ui -> api -> review -> gate` (skip ui only when no UI cases after generation)
+`从头开始` / `重新生成` / `fresh` / `忽略旧用例` → always regenerate cases first, then full loop.
 
 ### Stage intents
 
 | Stage | Intent |
 |-------|--------|
-| cases | UI-first case generation; no execution; no pass marks |
-| ui | Env precheck + Midscene/UI execution (core value when UI cases exist) |
-| api | Frontend-supporting smoke only (login/critical reads) |
-| review | Evidence sufficiency; no invented results |
-| gate | Prefer `python ./.trellis/scripts/project/check_test_cases.py <task>`; missing script → soft-fail |
+| cases | UI-first generation; also when coverage gate fails |
+| ui | Env precheck + seed (if mutation) + Midscene; read_only then mutation |
+| api | Narrow frontend smoke |
+| review | Evidence sufficiency; product vs harness classification |
+| gate | Project `check_test_cases.py` or skill script |
+| report | **Mandatory** full HTML for full runs |
 
-### Task resolution
+### UI coverage gate
 
-1. `.trellis/tasks/...` path token  
-2. slug → `.trellis/tasks/<slug>/`  
-3. `python ./.trellis/scripts/task.py current --source`  
-4. else ask user  
+On `开始测试` / `执行验收` / `跑 UI`:
+
+```bash
+python scripts/check_coverage_gate.py --task <task>
+```
+
+Non-zero → expand cases before UI execution (unless user says 仅执行现有用例).
+
+### Midscene execution order
+
+1. `check_coverage_gate.py`
+2. env precheck (`env-precheck.md` + credentials + optional DB fingerprint)
+3. `run_midscene_pipeline.py prepare` → single run-id under `evidence/midscene-run-grok-<id>/`
+4. session setup (never redacted yaml as password source)
+5. Midscene **read_only** cases
+6. API **seed** isolation fixtures if mutation needs rows (`fixture-seed-cleanup.md`)
+7. Midscene **mutation** cases
+8. **cleanup** isolation data
+9. `run_midscene_pipeline.py finalize` (jsonl + full HTML)
+10. review → gate → final reply with full HTML first
+
+Failed Midscene cases: at most **one** automated re-attempt after harness fix, under same run-id `attempts/`.
+
+### Report
+
+**Primary:**
+
+```text
+<task>/test-run-YYYYMMDD-grok-full-acceptance.html
+<task>/test-run-latest-grok-full-acceptance.html
+```
+
+**Markdown narrative:** `test-run-YYYYMMDD-grok-acceptance.md`  
+**UI-only HTML:** only if user asked UI-only.
 
 ### Evidence
 
 ```text
 <task>/evidence/grok-qa-routing-YYYYMMDD-HHmmss.jsonl
-```
-
-Preferred fields: `agent=grok-qa`, `skill=grok-qa-acceptance`, `dispatchMode=grok-agent` (or `grok-skill` fallback).
-
-### Report
-
-```text
-<task>/test-run-YYYYMMDD-grok-acceptance.md
+<task>/evidence/midscene-run-grok-<runId>/
 ```
 
 ## Safety
 
-- Write acceptance artifacts under `.trellis/tasks/<task>/**` only
-- Do not edit product source trees unless the user explicitly requests a product fix outside QA
-- Do not start services unless the user asks
+- Write only `.trellis/tasks/<task>/**` acceptance artifacts
+- No product source edits unless user leaves QA mode
 - No secrets in task artifacts
-- No unauthorized mutation/destructive cases
-- Honor project `no_edit_globs` from `acceptance.defaults.md` when present
+- No unauthorized destructive cases
+- Honor `no_edit_globs`
 
 ## Sync Policy
 
-- **Global package** = default truth for new Trellis repos on this machine
-- **Project same-name package** = full override while working in that repo (must stay complete)
-- When fixing generic contracts: update global first, then cherry-pick into project copies that still need the fix
-
-## Relationship To Other Skills
-
-- Project helpers such as `test-case-generator` / `test-case-acceptance` / `test-case-midscene-acceptance` may still exist; **`grok-qa` + this package** are the Grok QA product entry for the full frontend-oriented loop.
-- OpenCode acceptance agents (if any) are a separate path; do not merge runs.
+- Global package = default for this machine
+- Project same-name package = full replace
+- Fix generic contracts in global first

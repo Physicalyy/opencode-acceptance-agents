@@ -29,6 +29,15 @@ When user authorizes mutation/destructive cases, write into report and case `not
 - affected scope
 - cleanup/rollback expectation if known
 
+### UI mutation wording
+
+Treat as authorization for **isolation-scoped UI write cases** when the user says any of:
+
+- `开始执行ui用例` / `执行全部UI` / `跑写入用例`
+- explicit case IDs that are `data_mutation`
+
+Still prefer isolation dates/fixture data and soft-delete cleanup. Do **not** treat plain `开始测试` alone as blank-check production-data mutation.
+
 ## Shared environments
 
 Default to **read-only** checks against shared dev/staging data.

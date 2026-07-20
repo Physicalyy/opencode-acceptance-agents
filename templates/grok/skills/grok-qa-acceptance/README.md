@@ -1,97 +1,61 @@
-# grok-qa-acceptance
+# grok-qa-acceptance (user-global)
 
 Contract library for the **Grok QA** product path (Trellis frontend-oriented full acceptance).
 
-This tree is the **template** shipped by [opencode-acceptance-agents](https://github.com/Physicalyy/opencode-acceptance-agents) under `templates/grok/`.
-
 ## Version
 
-- `version`: `1.0.0-trellis-global`
-- `source`: generalized from HEMS-git project package @ 2026-07-12
+- `version`: `1.2.0-trellis-global`
+- Pipeline + coverage gate + full HTML + seed/cleanup + failure_class (2026-07-17)
 
-## Install (recommended)
+## Install locations
 
-```bash
-npx github:Physicalyy/opencode-acceptance-agents --runtime grok --target <project-root>
-```
+| Layer | Path |
+|-------|------|
+| Agent | `~/.grok/agents/grok-qa.md` |
+| Skill | `~/.grok/skills/grok-qa-acceptance/` |
 
-## Install locations (after installer)
-
-| Layer | Path | Scope |
-|-------|------|-------|
-| **Agent** | `~/.grok/agents/grok-qa.md` | All projects (unless project `.grok/agents/grok-qa.md` overrides) |
-| **Skill** | `~/.grok/skills/grok-qa-acceptance/` | User-global |
-| **Project agent** | `<repo>/.grok/agents/grok-qa.md` | Project override |
-| **Project skill** | `<repo>/.agents/skills/grok-qa-acceptance/` | Project override (full replace of same name) |
-
-On Windows: `C:\Users\<you>\.grok\...`
-
-Open `/config-agents` (or select agent `grok-qa`) for the agent entry. Grok auto-discovers these paths after a new session.
-
-## Same-name override (important)
-
-Grok skills are **deduplicated by name** with **project > user**. A project package **fully replaces** this global package for that session — it does **not** merge.
-
-Therefore:
-
-- Global package must stay **complete**
-- Project copies (if any) must also stay **complete**, not thin stubs with the same name
-
-## Isolation
-
-- Does not live under project `.opencode/`
-- Does not call OpenCode Task / `opencode` as orchestrator
-- Writes `dispatchMode=grok-agent` and `evidence/grok-qa-routing-*.jsonl`
-- Prefers `test-run-YYYYMMDD-grok-acceptance.md`
+Windows: `C:\Users\<you>\.grok\...`
 
 ## Full flow
 
 ```text
-cases (UI-first)
-  -> ui (Midscene core; skip if no UI cases)
-  -> api (narrow smoke for UI)
+coverage gate
+  -> cases (if thin)
+  -> ui (Midscene: read_only then mutation)
+  -> api (narrow smoke)
   -> review
-  -> gate (check_test_cases.py if present)
+  -> gate
+  -> full HTML (all test-cases.jsonl)
 ```
 
-## Project defaults
-
-See `references/project-defaults.md` and optional repo file:
+## Scripts
 
 ```text
-.trellis/acceptance.defaults.md
-.trellis/acceptance.defaults.local.md   # optional local override
+scripts/check_coverage_gate.py
+scripts/run_midscene_pipeline.py
+scripts/update_case_status.py
+scripts/check_test_cases.py
+scripts/generate_full_report_html.py
 ```
 
-## Layout
+## Key references
 
-```text
-~/.grok/agents/grok-qa.md
-~/.grok/skills/grok-qa-acceptance/
-  SKILL.md
-  README.md
-  references/
-    platform-boundary.md
-    project-defaults.md
-    state-machine.md
-    case-schema.md
-    risk-gate.md
-    env-precheck.md
-    midscene-limitations.md
-    api-evidence.md
-    report-format.md
-```
+- `state-machine.md` — stages, coverage gate, completion
+- `report-format.md` — full HTML mandatory
+- `midscene-emcpc-patterns.md` — Element UI / async form
+- `fixture-seed-cleanup.md` — isolation data
+- `evidence-run-layout.md` — single run-id
+- `failure-class.md` — product vs harness
 
-## Example prompts
+## Deliverables
 
-```text
-用 Grok 验收 .trellis/tasks/<task-slug>
-<task-slug> 从头开始，忽略旧用例，开始测试任务
-对当前任务做前端 UI 验收
-```
+| File | Role |
+|------|------|
+| `test-run-*-grok-full-acceptance.html` | **Primary** user-facing report |
+| `test-run-latest-grok-full-acceptance.html` | Stable alias |
+| `test-run-*-grok-acceptance.md` | Narrative review/gate |
+| `test-run-*-grok-ui-acceptance.html` | Only if user asked UI-only |
 
-## Sync
+## Same-name override
 
-1. Fix generic contracts here first.
-2. Cherry-pick into project full copies that still need the change.
-3. Bump `version` in both places when behavior changes.
+Project `.agents/skills/grok-qa-acceptance/` **fully replaces** this package (no merge). Keep complete.

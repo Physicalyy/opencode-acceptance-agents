@@ -1,7 +1,7 @@
 {
   "name": "opencode-acceptance-agents",
-  "version": "0.4.0",
-  "description": "Trellis acceptance agents: OpenCode multi-model stages (DeepSeek/Qwen/GPT) + Grok single-agent full loop. UI-first, Midscene, API smoke, review, gate.",
+  "version": "0.5.0",
+  "description": "Trellis acceptance agents: OpenCode multi-model stages (DeepSeek/Qwen/GPT) + Grok single-agent full loop (coverage gate, Midscene pipeline, full HTML). UI-first, API smoke, review, gate.",
   "type": "module",
   "bin": {
     "opencode-acceptance-agents": "./scripts/install.mjs"

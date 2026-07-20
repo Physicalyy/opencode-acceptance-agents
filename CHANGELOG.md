@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.5.0
+
+### Grok (sync from `~/.grok` practice @ 2026-07-17)
+
+- **grok-qa / grok-qa-acceptance → 1.2.0-trellis-global**
+- Full flow: `coverage-gate → cases (if thin) → ui → api → review → gate → full HTML`
+- Skill **scripts/** shipped with the package:
+  - `check_coverage_gate.py` — PRD/UI theme coverage before UI exec
+  - `run_midscene_pipeline.py` — prepare/finalize Midscene run-id layout
+  - `update_case_status.py` — safe JSONL status / evidence / failure_class updates
+  - `check_test_cases.py` — P0/P1 gate fallback when project checker missing
+  - `generate_full_report_html.py` — full-scope HTML from all cases
+- New references: `evidence-run-layout`, `failure-class`, `fixture-seed-cleanup`, `midscene-emcpc-patterns` (Element UI patterns)
+- Primary deliverable: `test-run-*-grok-full-acceptance.html` (+ latest alias); Markdown narrative retained
+- Installer selfcheck/verify require coverage-gate script; AGENTS managed block updated
+
 ## 0.4.0
 
 ### OpenCode (from HEMS Trellis multi-model practice)
